@@ -6,7 +6,9 @@ BASE = Path("corpora")
 OUTPUT = Path("output")
 OUTPUT.mkdir(exist_ok=True)
 
-marker = re.compile(r"(\d+):(\d+)")
+cv = re.compile(r"^(\d+):(\d+)\s+(.*)")
+v = re.compile(r"^(\d+)\s+(.*)")
+chap = re.compile(r"^CHAPTER\s+(\d+)", re.I)
 
 global_index = {}
 
@@ -19,31 +21,61 @@ for corpus_dir in BASE.iterdir():
     if not raw.exists():
         continue
 
-    text = raw.read_text(errors="ignore")
-
-    start = text.find("*** START")
-    if start != -1:
-        text = text[start:]
-
-    matches = list(marker.finditer(text))
+    lines = raw.read_text(errors="ignore").splitlines()
 
     verses = []
+    current_book = "Unknown"
+    current_chapter = None
+    current = None
 
-    for i, m in enumerate(matches):
-        chapter = int(m.group(1))
-        verse = int(m.group(2))
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
 
-        s = m.end()
-        e = matches[i+1].start() if i+1 < len(matches) else len(text)
+        if line.isupper() and len(line) < 120 and ":" not in line:
+            current_book = line.title()
+            continue
 
-        chunk = text[s:e]
+        m = chap.match(line)
+        if m:
+            current_chapter = int(m.group(1))
+            continue
 
-        verses.append({
-            "corpus": corpus,
-            "chapter": chapter,
-            "verse": verse,
-            "text": " ".join(chunk.split())
-        })
+        m = cv.match(line)
+        if m:
+            if current:
+                verses.append(current)
+
+            current_chapter = int(m.group(1))
+            current = {
+                "corpus": corpus,
+                "book": current_book,
+                "chapter": current_chapter,
+                "verse": int(m.group(2)),
+                "text": m.group(3)
+            }
+            continue
+
+        m = v.match(line)
+        if m and current_chapter is not None:
+            if current:
+                verses.append(current)
+
+            current = {
+                "corpus": corpus,
+                "book": current_book,
+                "chapter": current_chapter,
+                "verse": int(m.group(1)),
+                "text": m.group(2)
+            }
+            continue
+
+        if current:
+            current["text"] += " " + line
+
+    if current:
+        verses.append(current)
 
     (corpus_dir / "verses.json").write_text(json.dumps(verses, indent=2))
     global_index[corpus] = len(verses)
