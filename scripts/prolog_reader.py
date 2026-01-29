@@ -4,11 +4,11 @@ from pathlib import Path
 PROLOG_FILE = Path("prolog/wn_g.pl")
 
 def load_glosses():
-    """
-    Parses wn_g.pl and extracts synset glosses.
-    Returns dict: synset_id -> gloss
-    """
     glosses = {}
+
+    if not PROLOG_FILE.exists():
+        print(f"ERROR: File {PROLOG_FILE} does not exist.")
+        return glosses
 
     with PROLOG_FILE.open(encoding="utf-8", errors="ignore") as f:
         for line in f:
@@ -20,10 +20,10 @@ def load_glosses():
                     gloss = ast.literal_eval(gloss.strip())
                     glosses[synset_id.strip()] = gloss
                 except Exception as e:
+                    print(f"Skipped line: {line}")
                     continue
 
     return glosses
-
 
 if __name__ == "__main__":
     glosses = load_glosses()
