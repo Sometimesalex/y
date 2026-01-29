@@ -1,12 +1,13 @@
 import json
+import re
 from pathlib import Path
 
 BASE = Path("corpora")
 OUTPUT = Path("output")
 OUTPUT.mkdir(exist_ok=True)
 
-def is_digit(c):
-    return "0" <= c <= "9"
+# Matches chapter:verse like 3:16
+marker = re.compile(r"(\d+):(\d+)")
 
 global_index = {}
 
@@ -21,6 +22,7 @@ for corpus_dir in BASE.iterdir():
 
     text = raw.read_text(errors="ignore")
 
+    # Trim Gutenberg header if present
     start = text.find("*** START")
     if start != -1:
         text = text[start:]
@@ -29,76 +31,51 @@ for corpus_dir in BASE.iterdir():
     current_book = "Unknown"
     current = None
 
-    i = 0
-    n = len(text)
-
-    while i < n:
-        line_end = text.find("\n", i)
-        if line_end == -1:
-            line_end = n
-
-        line = text[i:line_end].strip()
-        i = line_end + 1
-
+    for line in text.splitlines():
+        line = line.strip()
         if not line:
             continue
 
-        if line.isupper() and len(line) < 100:
+        # Book headers (all caps lines)
+        if line.isupper() and len(line) < 120 and ":" not in line:
             current_book = line.title()
             continue
 
-        j = 0
-        L = len(line)
+        matches = list(marker.finditer(line))
 
-        found = False
+        if matches:
+            for i, m in enumerate(matches):
+                chapter = int(m.group(1))
+                verse = int(m.group(2))
 
-        while j < L:
-            if is_digit(line[j]):
-                k = j
-                while k < L and is_digit(line[k]):
-                    k += 1
+                text_start = m.end()
+                text_end = matches[i + 1].start() if i + 1 < len(matches) else len(line)
 
-                if k < L and line[k] == ":":
-                    k2 = k + 1
-                    if k2 < L and is_digit(line[k2]):
-                        while k2 < L and is_digit(line[k2]):
-                            k2 += 1
+                chunk = line[text_start:text_end].strip()
 
-                        chapter = int(line[j:k])
-                        verse = int(line[k+1:k2])
+                if current:
+                    verses.append(current)
 
-                        t = k2
-                        while t < L and line[t] == " ":
-                            t += 1
-
-                        if current:
-                            verses.append(current)
-
-                        current = {
-                            "corpus": corpus,
-                            "book": current_book,
-                            "chapter": chapter,
-                            "verse": verse,
-                            "text": line[t:].strip()
-                        }
-
-                        found = True
-                        break
-                j += 1
-            else:
-                j += 1
-
-        if not found and current:
-            current["text"] += " " + line
+                current = {
+                    "corpus": corpus,
+                    "book": current_book,
+                    "chapter": chapter,
+                    "verse": verse,
+                    "text": chunk
+                }
+        else:
+            # Continuation of previous verse
+            if current:
+                current["text"] += " " + line
 
     if current:
         verses.append(current)
 
     out = corpus_dir / "verses.json"
-    out.write_text(json.dumps(verses, indent=2))
+    out.write_text(json.dumps(verses, indent=2), encoding="utf-8")
 
     global_index[corpus] = len(verses)
 
-(Path("output") / "index.json").write_text(json.dumps(global_index, indent=2))
+(Path("output") / "index.json").write_text(json.dumps(global_index, indent=2), encoding="utf-8")
 
-print(global_index)
+print("Built:", global_index)
