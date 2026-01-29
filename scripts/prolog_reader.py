@@ -1,30 +1,33 @@
 import re
 from pathlib import Path
-from collections import defaultdict
 
 PROLOG_FILE = Path("prolog/wn_g.pl")
 
 def load_glosses():
     """
     Parses wn_g.pl and extracts synset glosses.
-    Returns a dictionary mapping synset IDs to gloss strings.
+    Returns dict: synset_id -> gloss
     """
     glosses = {}
-    pattern = re.compile(r"^g\((\d+),\d+,'([^']+)'\)\.")
 
-    with PROLOG_FILE.open(encoding="utf-8") as f:
+    # matches: g(100019046,'some text').
+    pattern = re.compile(r"^g\((\d+),'(.*)'\)\.$")
+
+    with PROLOG_FILE.open(encoding="utf-8", errors="ignore") as f:
         for line in f:
-            match = pattern.match(line.strip())
-            if match:
-                synset_id = match.group(1)
-                gloss = match.group(2)
+            line = line.strip()
+            m = pattern.match(line)
+            if m:
+                synset_id = m.group(1)
+                gloss = m.group(2)
                 glosses[synset_id] = gloss
 
     return glosses
+
 
 if __name__ == "__main__":
     glosses = load_glosses()
     print(f"Loaded {len(glosses)} glosses.")
     print("Sample:")
-    for sid, gloss in list(glosses.items())[:5]:
-        print(f"{sid}: {gloss}")
+    for k in list(glosses.keys())[:5]:
+        print(k, ":", glosses[k])
