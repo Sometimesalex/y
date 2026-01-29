@@ -14,6 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug raw markers
+        run: |
+          echo "GREP COUNT:"
+          grep -o "[0-9]\+:[0-9]\+" corpora/kjv/raw.txt | wc -l
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
