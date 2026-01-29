@@ -18,6 +18,7 @@ for corpus_dir in BASE.iterdir():
 
     corpus = corpus_dir.name
     raw = corpus_dir / "raw.txt"
+    print("RAW PREVIEW:", raw.read_text(errors="ignore")[:200])
     if not raw.exists():
         continue
 
