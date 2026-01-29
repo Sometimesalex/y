@@ -21,7 +21,7 @@ jobs:
 
       - name: Run ingestion
         run: |
-          python scripts/ingest_v2.py
+          python scripts/ingest_v3.py
 
       - name: Upload outputs
         uses: actions/upload-artifact@v4
