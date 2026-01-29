@@ -5,9 +5,8 @@ BASE = Path("corpora")
 OUTPUT = Path("output")
 OUTPUT.mkdir(exist_ok=True)
 
-chapter_re = re.compile(r"^CHAPTER\s+(\d+)", re.I)
-verse_re = re.compile(r"^(\d+)\s+(.*)")
-colon_re = re.compile(r"^(\d+):(\d+)\s+(.*)")
+# matches 3:16 Some text
+verse_marker = re.compile(r"(\d+):(\d+)\s+")
 
 global_index = {}
 
@@ -28,7 +27,6 @@ for corpus_dir in BASE.iterdir():
 
     verses = []
     current_book = "Unknown"
-    current_chapter = None
     current = None
 
     for line in text.splitlines():
@@ -36,51 +34,37 @@ for corpus_dir in BASE.iterdir():
         if not line:
             continue
 
-        # Book headers
-        if line.isupper() and len(line) < 100 and "CHAPTER" not in line:
+        # detect book headers
+        if line.isupper() and len(line) < 100:
             current_book = line.title()
             continue
 
-        # Chapter headers
-        m = chapter_re.match(line)
-        if m:
-            current_chapter = int(m.group(1))
-            continue
+        # find ALL verse markers in the line
+        matches = list(verse_marker.finditer(line))
 
-        # Format: 3:16 For God so loved...
-        m = colon_re.match(line)
-        if m:
+        if matches:
+            for i, m in enumerate(matches):
+                chapter = int(m.group(1))
+                verse = int(m.group(2))
+                start_idx = m.end()
+                end_idx = matches[i+1].start() if i+1 < len(matches) else len(line)
+
+                text_chunk = line[start_idx:end_idx].strip()
+
+                if current:
+                    verses.append(current)
+
+                current = {
+                    "corpus": corpus,
+                    "book": current_book,
+                    "chapter": chapter,
+                    "verse": verse,
+                    "text": text_chunk
+                }
+        else:
+            # continuation of previous verse
             if current:
-                verses.append(current)
-
-            current_chapter = int(m.group(1))
-            current = {
-                "corpus": corpus,
-                "book": current_book,
-                "chapter": current_chapter,
-                "verse": int(m.group(2)),
-                "text": m.group(3).strip()
-            }
-            continue
-
-        # Format: 16 For God so loved...
-        m = verse_re.match(line)
-        if m and current_chapter is not None:
-            if current:
-                verses.append(current)
-
-            current = {
-                "corpus": corpus,
-                "book": current_book,
-                "chapter": current_chapter,
-                "verse": int(m.group(1)),
-                "text": m.group(2).strip()
-            }
-            continue
-
-        # continuation line
-        if current:
-            current["text"] += " " + line
+                current["text"] += " " + line
 
     if current:
         verses.append(current)
