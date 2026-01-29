@@ -1,5 +1,5 @@
-import re
 from pathlib import Path
+import ast
 
 PROLOG_FILE = Path("prolog/wn_g.pl")
 
@@ -10,17 +10,19 @@ def load_glosses():
     """
     glosses = {}
 
-    # matches: g(100019046,'some text').
-    pattern = re.compile(r"^g\((\d+),'(.*)'\)\.$")
-
     with PROLOG_FILE.open(encoding="utf-8", errors="ignore") as f:
         for line in f:
             line = line.strip()
-            m = pattern.match(line)
-            if m:
-                synset_id = m.group(1)
-                gloss = m.group(2)
-                glosses[synset_id] = gloss
+
+            # match: g(100001740,'some text').
+            if line.startswith("g(") and line.endswith(")."):
+                try:
+                    content = line[2:-2]  # remove g( and ).
+                    synset_id, gloss = content.split(",", 1)
+                    gloss = ast.literal_eval(gloss.strip())
+                    glosses[synset_id.strip()] = gloss
+                except:
+                    continue
 
     return glosses
 
