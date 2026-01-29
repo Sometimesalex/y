@@ -1,9 +1,14 @@
 import ast
 from pathlib import Path
 
+# Path to the Prolog glosses file
 PROLOG_FILE = Path("prolog/wn_g.pl")
 
 def load_glosses():
+    """
+    Parses wn_g.pl and extracts synset glosses.
+    Returns dict: synset_id -> gloss
+    """
     glosses = {}
 
     if not PROLOG_FILE.exists():
@@ -15,12 +20,12 @@ def load_glosses():
             line = line.strip()
             if line.startswith("g(") and line.endswith(")."):
                 try:
-                    content = line[2:-2]  # strip g( and ).
+                    content = line[2:-2]  # remove "g(" at start and ")." at end
                     synset_id, gloss = content.split(",", 1)
                     gloss = ast.literal_eval(gloss.strip())
                     glosses[synset_id.strip()] = gloss
                 except Exception as e:
-                    print(f"Skipped line: {line}")
+                    print(f"Skipped line due to error: {e}")
                     continue
 
     return glosses
