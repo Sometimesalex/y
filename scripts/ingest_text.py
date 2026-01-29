@@ -1,12 +1,12 @@
-import re, json
+import json
 from pathlib import Path
 
 BASE = Path("corpora")
 OUTPUT = Path("output")
 OUTPUT.mkdir(exist_ok=True)
 
-# matches 3:16 Some text
-verse_marker = re.compile(r"(\d+):(\d+)\s+")
+def is_digit(c):
+    return "0" <= c <= "9"
 
 global_index = {}
 
@@ -29,42 +29,67 @@ for corpus_dir in BASE.iterdir():
     current_book = "Unknown"
     current = None
 
-    for line in text.splitlines():
-        line = line.strip()
+    i = 0
+    n = len(text)
+
+    while i < n:
+        line_end = text.find("\n", i)
+        if line_end == -1:
+            line_end = n
+
+        line = text[i:line_end].strip()
+        i = line_end + 1
+
         if not line:
             continue
 
-        # detect book headers
         if line.isupper() and len(line) < 100:
             current_book = line.title()
             continue
 
-        # find ALL verse markers in the line
-        matches = list(verse_marker.finditer(line))
+        j = 0
+        L = len(line)
 
-        if matches:
-            for i, m in enumerate(matches):
-                chapter = int(m.group(1))
-                verse = int(m.group(2))
-                start_idx = m.end()
-                end_idx = matches[i+1].start() if i+1 < len(matches) else len(line)
+        found = False
 
-                text_chunk = line[start_idx:end_idx].strip()
+        while j < L:
+            if is_digit(line[j]):
+                k = j
+                while k < L and is_digit(line[k]):
+                    k += 1
 
-                if current:
-                    verses.append(current)
+                if k < L and line[k] == ":":
+                    k2 = k + 1
+                    if k2 < L and is_digit(line[k2]):
+                        while k2 < L and is_digit(line[k2]):
+                            k2 += 1
 
-                current = {
-                    "corpus": corpus,
-                    "book": current_book,
-                    "chapter": chapter,
-                    "verse": verse,
-                    "text": text_chunk
-                }
-        else:
-            # continuation of previous verse
-            if current:
-                current["text"] += " " + line
+                        chapter = int(line[j:k])
+                        verse = int(line[k+1:k2])
+
+                        t = k2
+                        while t < L and line[t] == " ":
+                            t += 1
+
+                        if current:
+                            verses.append(current)
+
+                        current = {
+                            "corpus": corpus,
+                            "book": current_book,
+                            "chapter": chapter,
+                            "verse": verse,
+                            "text": line[t:].strip()
+                        }
+
+                        found = True
+                        break
+                j += 1
+            else:
+                j += 1
+
+        if not found and current:
+            current["text"] += " " + line
 
     if current:
         verses.append(current)
