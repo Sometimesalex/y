@@ -1,21 +1,25 @@
-import ast
+import re
 from pathlib import Path
+import ast
 
 PROLOG_FILE = Path("prolog/wn_g.pl")
 
 def load_glosses():
+    """
+    Parses wn_g.pl and extracts synset glosses.
+    Returns dict: synset_id -> gloss
+    """
     glosses = {}
+
+    pattern = re.compile(r"g\((\d+),\s*'(.*)'\)\.")
+
     with PROLOG_FILE.open(encoding="utf-8", errors="ignore") as f:
         for line in f:
-            line = line.strip()
-            if line.startswith("g(") and line.endswith(")."):
-                try:
-                    line = line[2:-2]  # remove g( and ).
-                    synset_id, gloss = line.split(",", 1)
-                    gloss = ast.literal_eval(gloss.strip())
-                    glosses[synset_id.strip()] = gloss
-                except Exception as e:
-                    continue
+            match = pattern.match(line.strip())
+            if match:
+                synset_id, gloss = match.groups()
+                glosses[synset_id] = gloss
+
     return glosses
 
 if __name__ == "__main__":
