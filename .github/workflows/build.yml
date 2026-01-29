@@ -14,11 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug raw markers
-        run: |
-          echo "GREP COUNT:"
-          grep -o "[0-9]\+:[0-9]\+" corpora/kjv/raw.txt | wc -l
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -28,10 +23,18 @@ jobs:
         run: |
           python scripts/ingest_v3.py
 
-      - name: Upload outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: corpus-output
-          path: |
-            corpora/*/verses.json
-            output/index.json
+      - name: Commit generated outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          # Always sync with remote first (prevents the old collisions)
+          git fetch origin
+          git reset --hard origin/main
+
+          # Re-run ingestion after reset to ensure files exist
+          python scripts/ingest_v3.py
+
+          git add corpora/*/verses.json output/index.json
+          git commit -m "Auto-update corpus outputs" || echo "No changes to commit"
+          git push
