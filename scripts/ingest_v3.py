@@ -29,14 +29,19 @@ for corpus_dir in BASE.iterdir():
 
     verses = []
 
-    for i, m in enumerate(matches):
+    for i in range(len(matches)):
+        m = matches[i]
+
         chapter = int(m.group(1))
         verse = int(m.group(2))
 
-        s = m.end()
-        e = matches[i+1].start() if i+1 < len(matches) else len(text)
+        content_start = m.end()
+        content_end = matches[i+1].start() if i+1 < len(matches) else len(text)
 
-        chunk = text[s:e]
+        chunk = text[content_start:content_end]
+
+        # Remove leading punctuation/whitespace
+        chunk = chunk.lstrip(" .:-\n\r\t")
 
         verses.append({
             "corpus": corpus,
