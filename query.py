@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import defaultdict
 from scripts.prolog_reader import load_glosses
 
+# Load data
 DATA = Path("corpora/kjv/verses_enriched.json")
 SESS = Path("sessions")
 SESS.mkdir(exist_ok=True)
@@ -16,9 +17,7 @@ prolog_glosses = load_glosses()
 SHOW_REFS = "--refs" in sys.argv
 word_re = re.compile(r"[a-z]+")
 
-def words(t):
-    return word_re.findall(t.lower())
-
+# Keyword categories
 PURPOSE = set("why wherefore purpose created sent called chosen will way truth life light love".split())
 PROCESS = set("how make build go come speak create give take rise walk live follow".split())
 DEFINE = set("what is are was were behold".split())
@@ -27,26 +26,15 @@ PLACE = set("where land city place mount river wilderness house garden earth hea
 AGENT = set("who he she they man men people lord god jesus david israel".split())
 OWNERSHIP = set("whose belong inheritance inherit given children house of".split())
 
+def words(t):
+    return word_re.findall(t.lower())
+
 def detect_intent(q):
     q = q.lower().strip()
     for i in ["how many", "how much", "why", "how", "what", "when", "where", "who", "which", "whose"]:
         if q.startswith(i):
             return i
     return "why"
-
-def show(v):
-    if SHOW_REFS:
-        loc = f'{v.get("book","")} {v["chapter"]}:{v["verse"]}'
-        print(loc.strip())
-    print(v["text"])
-    print()
-
-def show_wordnet(term):
-    print("\n---\nRelated definitions from WordNet:")
-    for synset_id, gloss in prolog_glosses.items():
-        if term in gloss.lower():
-            print(f"- {gloss}")
-            break  # only show one result for now
 
 def score(v, intent):
     w = words(v["text"])
@@ -84,6 +72,13 @@ def summarize(rows):
             if w in AGENT: theme["agent"] += 1
     return sorted(theme.items(), key=lambda x: x[1], reverse=True)
 
+def show(v):
+    if SHOW_REFS:
+        loc = f'{v.get("book", "")} {v["chapter"]}:{v["verse"]}'
+        print(loc.strip())
+    print(v["text"])
+    print()
+
 def ask(q, sid):
     sess = load_session(sid)
     intent = detect_intent(q)
@@ -98,28 +93,29 @@ def ask(q, sid):
     themes = summarize(top)
     for k, v in themes:
         sess["themes"][k] += v
-
     save_session(sid, sess)
 
-    if themes:
-        print("You are being drawn toward:", ", ".join(t for t, _ in themes[:2]))
-        print()
-
-    if not top:
-        # fallback to WordNet glosses
+    if top:
+        if themes:
+            print("You are being drawn toward:", ", ".join(t for t, _ in themes[:2]))
+            print()
+        for v in top[:5]:
+            show(v)
+    else:
         print("No relevant verses found.")
-        first_word = q.lower().strip().split()[0]
-        show_wordnet(first_word)
-        return
-
-    for v in top[:5]:
-        show(v)
+        print()
+        # Fallback to WordNet
+        print("---\nRelated definitions from WordNet:")
+        for word in words(q):
+            gloss = prolog_glosses.get(word)
+            if gloss:
+                print(f"- {word}: {gloss}")
+        print()
 
 def quantify(q):
     term = q.lower().replace("how many", "").replace("how much", "").strip()
     hits = [v for v in verses if term in v["text"].lower()]
-    print(f"There are {len(hits)} occurrences related to '{term}'.")
-    print()
+    print(f"There are {len(hits)} occurrences related to '{term}'.\n")
     for v in hits[:5]:
         show(v)
 
@@ -135,8 +131,7 @@ def compare(q):
     if not A or not B:
         print("Could not resolve comparison.")
         return
-
-    def avg(m, r): return sum(v[m] for v in r)/len(r)
+    def avg(m, r): return sum(v[m] for v in r) / len(r)
     print("Comparison:")
     for m in ["sentiment", "compassion", "violence", "agency"]:
         print(m, round(avg(m, A), 4), "vs", round(avg(m, B), 4))
@@ -150,7 +145,6 @@ if __name__ == "__main__":
     q = " ".join([x for x in sys.argv[1:] if x != "--refs"])
 
     intent = detect_intent(q)
-
     if intent in ["how many", "how much"]:
         quantify(q)
     elif intent == "which":
