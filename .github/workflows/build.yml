@@ -6,7 +6,6 @@ on:
     paths:
       - "corpora/**"
       - "scripts/**"
-      - ".github/workflows/**"
 
 jobs:
   build:
@@ -24,18 +23,10 @@ jobs:
         run: |
           python scripts/ingest_text.py
 
-      - name: Commit outputs
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-
-          # hard reset to remote main to avoid collisions
-          git fetch origin
-          git reset --hard origin/main
-
-          # re-run ingestion after reset
-          python scripts/ingest_text.py
-          
-          git add corpora/*/verses.json output/index.json
-          git commit -m "Auto-generate verses + index" || echo "No changes"
-          git push
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-output
+          path: |
+            corpora/*/verses.json
+            output/index.json
