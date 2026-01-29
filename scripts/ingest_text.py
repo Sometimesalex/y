@@ -7,6 +7,8 @@ OUTPUT.mkdir(exist_ok=True)
 
 global_index = {}
 
+verse_re = re.compile(r"^(\d+):(\d+)\s+(.*)")
+
 for corpus_dir in BASE.iterdir():
     if not corpus_dir.is_dir():
         continue
@@ -18,36 +20,45 @@ for corpus_dir in BASE.iterdir():
 
     text = raw.read_text(encoding="utf-8", errors="ignore")
 
-    # Trim Gutenberg header if present
     start = text.find("*** START")
     if start != -1:
         text = text[start:]
 
     verses = []
     current_book = "Unknown"
+    current = None
 
     for line in text.splitlines():
-        line = line.strip()
-        if not line:
+        line = line.rstrip()
+
+        if not line.strip():
             continue
 
-        # Book header heuristic (works okay for Gutenberg KJV)
-        if (
-            len(line) < 80
-            and not re.match(r"^\d+:\d+\s", line)
-            and any(w in line for w in ["Book", "Gospel", "Epistle", "Revelation", "Psalms", "Proverbs"])
-        ):
-            current_book = line
+        # Detect book headers (Gutenberg style)
+        if line.isupper() and len(line) < 100:
+            current_book = line.title()
+            continue
 
-        m = re.match(r"^(\d+):(\d+)\s+(.*)", line)
+        m = verse_re.match(line)
         if m:
-            verses.append({
+            # Save previous verse
+            if current:
+                verses.append(current)
+
+            current = {
                 "corpus": corpus,
                 "book": current_book,
                 "chapter": int(m.group(1)),
                 "verse": int(m.group(2)),
                 "text": m.group(3).strip()
-            })
+            }
+        else:
+            # continuation of previous verse
+            if current:
+                current["text"] += " " + line.strip()
+
+    if current:
+        verses.append(current)
 
     out = corpus_dir / "verses.json"
     out.write_text(json.dumps(verses, indent=2), encoding="utf-8")
