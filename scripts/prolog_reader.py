@@ -1,20 +1,23 @@
-import re
 from pathlib import Path
 
 PROLOG_FILE = Path("prolog/wn_g.pl")
 
 def load_glosses():
     glosses = {}
-    pattern = re.compile(r"g\((\d+),\s*'(.*)'\)\.")
-
     with PROLOG_FILE.open(encoding="utf-8", errors="ignore") as f:
         for line in f:
-            match = pattern.match(line.strip())
-            if match:
-                synset_id, gloss = match.groups()
-                gloss = gloss.replace("\\'", "'")
-                glosses[synset_id] = gloss
-
+            line = line.strip()
+            if line.startswith("g(") and line.endswith(")."):
+                try:
+                    # Remove g( and ).
+                    inner = line[2:-2]
+                    # Split once on comma (id, gloss)
+                    synset_id, gloss = inner.split(",", 1)
+                    gloss = gloss.strip().strip("'")
+                    glosses[synset_id.strip()] = gloss
+                except Exception as e:
+                    print("Failed to parse:", line)
+                    continue
     return glosses
 
 if __name__ == "__main__":
