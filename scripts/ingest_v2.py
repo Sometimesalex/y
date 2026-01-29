@@ -6,8 +6,9 @@ BASE = Path("corpora")
 OUTPUT = Path("output")
 OUTPUT.mkdir(exist_ok=True)
 
-cv = re.compile(r"^(\d+):(\d+)\s+(.*)")
-v = re.compile(r"^(\d+)\s+(.*)")
+cv_inline = re.compile(r"^(\d+):(\d+)\s+(.*)")
+cv_only = re.compile(r"^(\d+):(\d+)$")
+v_only = re.compile(r"^(\d+)\s+(.*)")
 chap = re.compile(r"^CHAPTER\s+(\d+)", re.I)
 
 global_index = {}
@@ -18,7 +19,6 @@ for corpus_dir in BASE.iterdir():
 
     corpus = corpus_dir.name
     raw = corpus_dir / "raw.txt"
-    print("RAW PREVIEW:", raw.read_text(errors="ignore")[:200])
     if not raw.exists():
         continue
 
@@ -28,6 +28,7 @@ for corpus_dir in BASE.iterdir():
     current_book = "Unknown"
     current_chapter = None
     current = None
+    pending = None
 
     for line in lines:
         line = line.strip()
@@ -43,11 +44,10 @@ for corpus_dir in BASE.iterdir():
             current_chapter = int(m.group(1))
             continue
 
-        m = cv.match(line)
+        m = cv_inline.match(line)
         if m:
             if current:
                 verses.append(current)
-
             current_chapter = int(m.group(1))
             current = {
                 "corpus": corpus,
@@ -58,11 +58,25 @@ for corpus_dir in BASE.iterdir():
             }
             continue
 
-        m = v.match(line)
+        m = cv_only.match(line)
+        if m:
+            if current:
+                verses.append(current)
+            current_chapter = int(m.group(1))
+            pending = {
+                "corpus": corpus,
+                "book": current_book,
+                "chapter": current_chapter,
+                "verse": int(m.group(2)),
+                "text": ""
+            }
+            current = pending
+            continue
+
+        m = v_only.match(line)
         if m and current_chapter is not None:
             if current:
                 verses.append(current)
-
             current = {
                 "corpus": corpus,
                 "book": current_book,
@@ -73,7 +87,10 @@ for corpus_dir in BASE.iterdir():
             continue
 
         if current:
-            current["text"] += " " + line
+            if current["text"]:
+                current["text"] += " " + line
+            else:
+                current["text"] = line
 
     if current:
         verses.append(current)
