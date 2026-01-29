@@ -28,6 +28,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          git pull --rebase
           git add corpora/*/verses.json output/index.json
           git commit -m "Auto-generate verses + index" || echo "No changes"
           git push
