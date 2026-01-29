@@ -4,12 +4,14 @@ import re
 import uuid
 from pathlib import Path
 from collections import defaultdict
+from scripts.prolog_reader import load_glosses
 
 DATA = Path("corpora/kjv/verses_enriched.json")
 SESS = Path("sessions")
 SESS.mkdir(exist_ok=True)
 
 verses = json.loads(DATA.read_text())
+prolog_glosses = load_glosses()
 
 SHOW_REFS = "--refs" in sys.argv
 
@@ -38,6 +40,10 @@ def show(v):
         loc=f'{v.get("book","")} {v["chapter"]}:{v["verse"]}'
         print(loc.strip())
     print(v["text"])
+    print()
+
+def show_gloss(synset_id, gloss):
+    print(f"WordNet gloss: {gloss}")
     print()
 
 def score(v,intent):
@@ -101,8 +107,23 @@ def ask(q,sid):
     for v in top[:5]:
         show(v)
 
+    # Add WordNet gloss fallback (semantic answer)
+    print("---")
+    print("Related definitions from WordNet:")
+    qwords = words(q)
+    shown = set()
+    for word in qwords:
+        for k, gloss in prolog_glosses.items():
+            if word in gloss.lower() and gloss not in shown:
+                show_gloss(k, gloss)
+                shown.add(gloss)
+            if len(shown) >= 3:
+                break
+        if len(shown) >= 3:
+            break
+
 def quantify(q):
-    term=q.lower().replace("how many","").replace("how much","").strip()
+    term=q.lower().replace("how many","",1).replace("how much","",1).strip()
     hits=[v for v in verses if term in v["text"].lower()]
     print(f"There are {len(hits)} occurrences related to '{term}'.")
     print()
