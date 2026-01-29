@@ -22,6 +22,7 @@ jobs:
       - name: Run ingestion
         run: |
           python scripts/ingest_v3.py
+          python scripts/enrich_corpus.py
 
       - name: Commit generated outputs
         run: |
