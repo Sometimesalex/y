@@ -1,8 +1,3 @@
-print("Loading verses...")
-verses = json.loads(DATA.read_text())
-print(f"Loaded {len(verses)} verses.")
-print("Sample verse:", verses[0])
-
 import json
 import sys
 import re
@@ -14,6 +9,11 @@ from scripts.prolog_reader import load_glosses
 DATA = Path("corpora/kjv/verses_enriched.json")
 SESS = Path("sessions")
 SESS.mkdir(exist_ok=True)
+
+verses = json.loads(DATA.read_text())
+prolog_glosses = load_glosses()
+
+SHOW_REFS = "--refs" in sys.argv
 
 word_re = re.compile(r"[a-z]+")
 
@@ -28,91 +28,70 @@ PLACE = set("where land city place mount river wilderness house garden earth hea
 AGENT = set("who he she they man men people lord god jesus david israel".split())
 OWNERSHIP = set("whose belong inheritance inherit given children house of".split())
 
-CATEGORIES = {
-    "purpose": PURPOSE,
-    "process": PROCESS,
-    "define": DEFINE,
-    "time": TIME,
-    "place": PLACE,
-    "agent": AGENT,
-    "ownership": OWNERSHIP
-}
-
 def detect_intent(q):
     q = q.lower().strip()
     for i in ["how many", "how much", "why", "how", "what", "when", "where", "who", "which", "whose"]:
         if q.startswith(i):
             return i
-    return "unknown"
+    return "why"
 
 def show(v):
     if SHOW_REFS:
-        print(v["ref"], "\t", v["text"])
-    else:
-        print(v["text"])
+        print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
+    print(v["text"])
 
 def ask(q, sid):
-    qwords = set(words(q))
     intent = detect_intent(q)
+    sess_file = SESS / f"{sid}.json"
 
-    sess = {
-        "q": q,
-        "intent": intent,
-        "themes": defaultdict(int)
-    }
+    if sess_file.exists():
+        sess = json.loads(sess_file.read_text())
+    else:
+        sess = {"q": q, "intent": intent, "themes": defaultdict(int)}
 
-    results = []
+    matched = []
     for v in verses:
-        score = 0
-        for w in words(v["text"]):
-            for k, s in CATEGORIES.items():
-                if w in s:
-                    sess["themes"][k] += 1
-                    score += 1
-        if score > 0:
-            results.append((score, v))
+        w = words(v["text"])
+        if any(term in w for term in words(q)):
+            matched.append(v)
 
-    results.sort(reverse=True, key=lambda x: x[0])
-    sess_path = SESS / f"{sid}.json"
-    sess_path.write_text(json.dumps(sess, indent=2))
-
-    print("You are being drawn toward:", ", ".join(sorted(sess["themes"], key=sess["themes"].get, reverse=True)))
-    print()
-
-    for _, v in results[:5]:
-        show(v)
+    print("\nYou are being drawn toward:", intent_to_theme(intent))
+    for v in matched[:5]:
         print()
+        show(v)
 
-    print("---")
-    print("Related definitions from WordNet:")
-    shown = set()
+    print("\n---\nRelated definitions from WordNet:")
     for term in words(q):
         gloss = prolog_glosses.get(term)
-        if not gloss:
-            for k, g in prolog_glosses.items():
-                if term in g and k not in shown:
-                    gloss = g
-                    shown.add(k)
-                    break
         if gloss:
             print(f"{term}: {gloss}")
 
+    sess_file.write_text(json.dumps(sess, indent=2))
+
+def intent_to_theme(intent):
+    mapping = {
+        "why": "purpose",
+        "how": "process",
+        "what": "define",
+        "when": "time",
+        "where": "place",
+        "who": "agent",
+        "whose": "ownership"
+    }
+    return mapping.get(intent, "purpose")
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: query.py \"your question here\"")
+        print("Usage: query_v2.py \"your question here\"")
         sys.exit()
 
     sid = uuid.uuid4().hex[:8]
     q = " ".join(x for x in sys.argv[1:] if x != "--refs")
 
-    SHOW_REFS = "--refs" in sys.argv
-
     print("Loading verses...")
-    verses = json.loads(DATA.read_text())
     print(f"Loaded {len(verses)} verses.")
 
     print("Loading WordNet glosses...")
-    prolog_glosses = load_glosses()
     print(f"Loaded {len(prolog_glosses)} WordNet glosses.")
 
     print(f"Asking: {q}")
