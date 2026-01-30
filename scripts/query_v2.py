@@ -87,49 +87,18 @@ def ask(q, sid):
         if any(term in w for term in q_words):
             matched.append(v)
 
-            # ONLY count senses for query words (eg "light")
+            verse_set = set(w)
+
             for tok in w:
                 if tok in q_words:
+                    best = None
+                    best_score = 0
+
                     for m in wn.lookup(tok):
-                        LOCAL_SENSES[m["synset"]] += 1
+                        if not m["gloss"]:
+                            continue
 
-    print("\nYou are being drawn toward:", intent_to_theme(intent))
+                        gloss_words = set(words(m["gloss"]))
+                        score = len(gloss_words & verse_set)
 
-    for v in matched[:5]:
-        print()
-        show(v)
-
-    # -------- ranking --------
-
-    print("\n---\nContext-shifted meanings:\n")
-
-    ranked = []
-
-    local_total = sum(LOCAL_SENSES.values())
-
-    for syn, lc in LOCAL_SENSES.items():
-        gc = GLOBAL_SENSES.get(syn, 1)
-        delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
-        ranked.append((delta, syn))
-
-    ranked.sort(reverse=True)
-
-    for delta, syn in ranked[:10]:
-        gloss = wn.glosses.get(syn)
-        if gloss:
-            print(f"{delta:+.4f} — {gloss}")
-
-    sess_file.write_text(json.dumps(sess, indent=2))
-
-# ---------------- ENTRY ----------------
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question here\"")
-        sys.exit()
-
-    sid = uuid.uuid4().hex[:8]
-    q = " ".join(x for x in sys.argv[1:] if x != "--refs")
-
-    print(f"\nAsking: {q}")
-    ask(q, sid)
+                        i
