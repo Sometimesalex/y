@@ -25,13 +25,22 @@ word_re = re.compile(r"[a-z]+")
 def words(t):
     return word_re.findall(t.lower())
 
-PURPOSE = set("why wherefore purpose created sent called chosen will way truth life light love".split())
-PROCESS = set("how make build go come speak create give take rise walk live follow".split())
-DEFINE = set("what is are was were behold".split())
-TIME = set("when day days year years time season hour night morning".split())
-PLACE = set("where land city place mount river wilderness house garden earth heaven".split())
-AGENT = set("who he she they man men people lord god jesus david israel".split())
-OWNERSHIP = set("whose belong inheritance inherit given children house of".split())
+# ---------------- GLOBAL BASELINE ----------------
+
+print("Building global sense baseline...")
+
+GLOBAL_SENSES = defaultdict(int)
+
+for v in verses:
+    for w in words(v["text"]):
+        for m in wn.lookup(w):
+            GLOBAL_SENSES[m["synset"]] += 1
+
+GLOBAL_TOTAL = sum(GLOBAL_SENSES.values())
+
+print("Global baseline built:", GLOBAL_TOTAL)
+
+# ---------------- INTENT ----------------
 
 def detect_intent(q):
     q = q.lower().strip()
@@ -39,11 +48,6 @@ def detect_intent(q):
         if q.startswith(i):
             return i
     return "why"
-
-def show(v):
-    if SHOW_REFS:
-        print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
-    print(v["text"])
 
 def intent_to_theme(intent):
     mapping = {
@@ -57,6 +61,13 @@ def intent_to_theme(intent):
     }
     return mapping.get(intent, "purpose")
 
+def show(v):
+    if SHOW_REFS:
+        print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
+    print(v["text"])
+
+# ---------------- MAIN QUERY ----------------
+
 def ask(q, sid):
     intent = detect_intent(q)
     sess_file = SESS / f"{sid}.json"
@@ -64,13 +75,21 @@ def ask(q, sid):
     if sess_file.exists():
         sess = json.loads(sess_file.read_text())
     else:
-        sess = {"q": q, "intent": intent, "themes": defaultdict(int)}
+        sess = {"q": q, "intent": intent}
 
     matched = []
+    LOCAL_SENSES = defaultdict(int)
+
+    q_words = words(q)
+
     for v in verses:
         w = words(v["text"])
-        if any(term in w for term in words(q)):
+        if any(term in w for term in q_words):
             matched.append(v)
+
+            for tok in w:
+                for m in wn.lookup(tok):
+                    LOCAL_SENSES[m["synset"]] += 1
 
     print("\nYou are being drawn toward:", intent_to_theme(intent))
 
@@ -78,20 +97,29 @@ def ask(q, sid):
         print()
         show(v)
 
-    print("\n---\nSemantic meanings (WordNet):\n")
+    # -------- ranking --------
 
-    for term in words(q):
-        meanings = wn.lookup(term)
+    print("\n---\nContext-shifted meanings:\n")
 
-        if not meanings:
-            continue
+    ranked = []
 
-        print(f"\n[{term}]")
+    local_total = sum(LOCAL_SENSES.values())
 
-        for m in meanings[:3]:  # limit per word
-            print(f"- ({m['pos']}) {m['gloss']}")
+    for syn, lc in LOCAL_SENSES.items():
+        gc = GLOBAL_SENSES.get(syn, 1)
+        delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
+        ranked.append((delta, syn))
+
+    ranked.sort(reverse=True)
+
+    for delta, syn in ranked[:10]:
+        gloss = wn.glosses.get(syn)
+        if gloss:
+            print(f"{delta:+.4f} — {gloss}")
 
     sess_file.write_text(json.dumps(sess, indent=2))
+
+# ---------------- ENTRY ----------------
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
