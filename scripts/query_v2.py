@@ -25,6 +25,13 @@ word_re = re.compile(r"[a-z]+")
 def words(t):
     return word_re.findall(t.lower())
 
+# ---------------- STOPWORDS ----------------
+
+STOPWORDS = set("""
+what do you about think is are was were the a an and or of to in on for with as by at from
+he she they them we us i me my your his her their our
+""".split())
+
 # ---------------- GLOBAL BASELINE ----------------
 
 print("Building global sense baseline...")
@@ -80,14 +87,14 @@ def ask(q, sid):
     matched = []
     LOCAL_SENSES = defaultdict(int)
 
-    q_words = words(q)
+    # filter query words
+    q_words = [w for w in words(q) if w not in STOPWORDS]
 
     for v in verses:
         w = words(v["text"])
         if any(term in w for term in q_words):
             matched.append(v)
 
-            # ONLY count senses for query words (eg "light")
             for tok in w:
                 if tok in q_words:
                     for m in wn.lookup(tok):
@@ -98,8 +105,6 @@ def ask(q, sid):
     for v in matched[:5]:
         print()
         show(v)
-
-    # -------- ranking --------
 
     print("\n---\nContext-shifted meanings:\n")
 
