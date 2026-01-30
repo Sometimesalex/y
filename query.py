@@ -94,4 +94,14 @@ if __name__ == "__main__":
 
     sid = uuid.uuid4().hex[:8]
     q = " ".join(x for x in sys.argv[1:] if x != "--refs")
+    
+    print("Loading verses...")
+    verses = json.loads(DATA.read_text())
+    print(f"Loaded {len(verses)} verses.")
+
+    print("Loading WordNet glosses...")
+    prolog_glosses = load_glosses()
+    print(f"Loaded {len(prolog_glosses)} WordNet glosses.")
+
+    print(f"Asking: {q}")
     ask(q, sid)
