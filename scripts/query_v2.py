@@ -4,7 +4,7 @@ import re
 import uuid
 from pathlib import Path
 from collections import defaultdict
-from scripts.prolog_reader import load_glosses
+from prolog_reader import load_glosses
 
 DATA = Path("corpora/kjv/verses_enriched.json")
 SESS = Path("sessions")
