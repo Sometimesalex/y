@@ -2,6 +2,7 @@ import json
 import sys
 import re
 import uuid
+print("query.py started")
 from pathlib import Path
 from collections import defaultdict
 from scripts.prolog_reader import load_glosses
