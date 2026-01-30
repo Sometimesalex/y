@@ -87,9 +87,11 @@ def ask(q, sid):
         if any(term in w for term in q_words):
             matched.append(v)
 
+            # ONLY count senses for query words (eg "light")
             for tok in w:
-                for m in wn.lookup(tok):
-                    LOCAL_SENSES[m["synset"]] += 1
+                if tok in q_words:
+                    for m in wn.lookup(tok):
+                        LOCAL_SENSES[m["synset"]] += 1
 
     print("\nYou are being drawn toward:", intent_to_theme(intent))
 
