@@ -1,3 +1,8 @@
+print("Loading verses...")
+verses = json.loads(DATA.read_text())
+print(f"Loaded {len(verses)} verses.")
+print("Sample verse:", verses[0])
+
 import json
 import sys
 import re
