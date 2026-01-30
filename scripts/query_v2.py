@@ -4,14 +4,19 @@ import re
 import uuid
 from pathlib import Path
 from collections import defaultdict
-from prolog_reader import load_glosses
+
+from prolog_reader import LocalWordNet
 
 DATA = Path("corpora/kjv/verses_enriched.json")
 SESS = Path("sessions")
 SESS.mkdir(exist_ok=True)
 
+print("Loading verses...")
 verses = json.loads(DATA.read_text())
-prolog_glosses = load_glosses()
+print(f"Loaded {len(verses)} verses.")
+
+print("Loading local WordNet...")
+wn = LocalWordNet()
 
 SHOW_REFS = "--refs" in sys.argv
 
@@ -40,6 +45,18 @@ def show(v):
         print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
     print(v["text"])
 
+def intent_to_theme(intent):
+    mapping = {
+        "why": "purpose",
+        "how": "process",
+        "what": "define",
+        "when": "time",
+        "where": "place",
+        "who": "agent",
+        "whose": "ownership"
+    }
+    return mapping.get(intent, "purpose")
+
 def ask(q, sid):
     intent = detect_intent(q)
     sess_file = SESS / f"{sid}.json"
@@ -56,29 +73,25 @@ def ask(q, sid):
             matched.append(v)
 
     print("\nYou are being drawn toward:", intent_to_theme(intent))
+
     for v in matched[:5]:
         print()
         show(v)
 
-    print("\n---\nRelated definitions from WordNet:")
+    print("\n---\nSemantic meanings (WordNet):\n")
+
     for term in words(q):
-        gloss = prolog_glosses.get(term)
-        if gloss:
-            print(f"{term}: {gloss}")
+        meanings = wn.lookup(term)
+
+        if not meanings:
+            continue
+
+        print(f"\n[{term}]")
+
+        for m in meanings[:3]:  # limit per word
+            print(f"- ({m['pos']}) {m['gloss']}")
 
     sess_file.write_text(json.dumps(sess, indent=2))
-
-def intent_to_theme(intent):
-    mapping = {
-        "why": "purpose",
-        "how": "process",
-        "what": "define",
-        "when": "time",
-        "where": "place",
-        "who": "agent",
-        "whose": "ownership"
-    }
-    return mapping.get(intent, "purpose")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -88,11 +101,5 @@ if __name__ == "__main__":
     sid = uuid.uuid4().hex[:8]
     q = " ".join(x for x in sys.argv[1:] if x != "--refs")
 
-    print("Loading verses...")
-    print(f"Loaded {len(verses)} verses.")
-
-    print("Loading WordNet glosses...")
-    print(f"Loaded {len(prolog_glosses)} WordNet glosses.")
-
-    print(f"Asking: {q}")
+    print(f"\nAsking: {q}")
     ask(q, sid)
