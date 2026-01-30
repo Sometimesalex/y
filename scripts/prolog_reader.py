@@ -1,37 +1,138 @@
 import re
 from pathlib import Path
 
-PROLOG_FILE = Path("prolog/wn_g.pl")
+# Base folder containing all Prolog WordNet files
+BASE = Path("prolog")
 
-# matches:
+# ---------- REGEX PATTERNS ----------
+
 # g(100001740,'some text').
-PATTERN = re.compile(r"g\((\d+),'(.*)'\)\.")
+GLOSS_PATTERN = re.compile(r"g\((\d+),'(.*)'\)\.")
+
+# s(100017087,1,'god',n,1,0).
+SENSE_PATTERN = re.compile(r"s\((\d+),\d+,'([^']+)',([a-z]),(\d+),")
+
+# generic (123,456)
+REL_PATTERN = re.compile(r"\((\d+),(\d+)")
+
+
+# ---------- LOADERS ----------
 
 def load_glosses():
     glosses = {}
 
-    print("Opening:", PROLOG_FILE.resolve())
+    path = BASE / "wn_g.pl"
+    print("Opening:", path.resolve())
 
-    with PROLOG_FILE.open(encoding="utf-8", errors="ignore") as f:
+    with path.open(encoding="utf-8", errors="ignore") as f:
         for line in f:
             line = line.strip()
-            m = PATTERN.match(line)
+            m = GLOSS_PATTERN.match(line)
             if not m:
                 continue
 
             synset_id = m.group(1)
             gloss = m.group(2)
 
-            # unescape single quotes if any
+            # unescape single quotes
             gloss = gloss.replace("\\'", "'")
 
             glosses[synset_id] = gloss
 
+    print("Loaded", len(glosses), "glosses")
     return glosses
 
 
+def load_senses():
+    senses = {}
+
+    path = BASE / "wn_s.pl"
+    print("Opening:", path.resolve())
+
+    with path.open(encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            m = SENSE_PATTERN.search(line)
+            if not m:
+                continue
+
+            synset, word, pos, sense = m.groups()
+            word = word.lower()
+
+            senses.setdefault(word, []).append({
+                "synset": synset,
+                "pos": pos,
+                "sense": int(sense)
+            })
+
+    print("Loaded", sum(len(v) for v in senses.values()), "senses")
+    return senses
+
+
+def load_relations(filename):
+    rel = {}
+
+    path = BASE / filename
+    print("Opening:", path.resolve())
+
+    with path.open(encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            m = REL_PATTERN.search(line)
+            if not m:
+                continue
+
+            a, b = m.groups()
+            rel.setdefault(a, set()).add(b)
+
+    print("Loaded", filename, "relations:", len(rel))
+    return rel
+
+
+# ---------- MAIN WORDNET CLASS ----------
+
+class LocalWordNet:
+    def __init__(self):
+        print("Loading local Prolog WordNet...")
+
+        self.glosses = load_glosses()
+        self.senses = load_senses()
+
+        self.hypernyms = load_relations("wn_hyp.pl")
+        self.antonyms = load_relations("wn_ant.pl")
+        self.similar = load_relations("wn_sim.pl")
+        self.derivations = load_relations("wn_der.pl")
+
+        print("WordNet ready.\n")
+
+    def lookup(self, word):
+        word = word.lower()
+        results = []
+
+        for s in self.senses.get(word, []):
+            syn = s["synset"]
+
+            results.append({
+                "synset": syn,
+                "pos": s["pos"],
+                "sense": s["sense"],
+                "gloss": self.glosses.get(syn),
+                "hypernyms": list(self.hypernyms.get(syn, [])),
+                "antonyms": list(self.antonyms.get(syn, [])),
+                "similar": list(self.similar.get(syn, [])),
+                "derivations": list(self.derivations.get(syn, []))
+            })
+
+        return results
+
+
+# ---------- TEST ----------
+
 if __name__ == "__main__":
-    g = load_glosses()
-    print("Loaded", len(g), "glosses")
-    for k in list(g.keys())[:5]:
-        print(k, ":", g[k])
+    wn = LocalWordNet()
+
+    test_word = "light"
+    print(f"Lookup for '{test_word}':\n")
+
+    data = wn.lookup(test_word)
+    for entry in data:
+        print(entry)
+        print("-" * 40)
