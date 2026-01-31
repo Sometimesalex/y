@@ -252,11 +252,10 @@ def ask(q, sid):
 
     expanded_terms, mapping = expand_query_terms(raw_terms)
 
-    # per-term GCIDE fallback
+    # GCIDE fallback when original term not in Bible
     gcide_hits = {}
     for t in raw_terms:
-        mapped = mapping.get(t, [])
-        if not mapped:
+        if t not in VOCAB:
             defs = gcide_lookup(t)
             if defs:
                 gcide_hits[t] = defs
@@ -267,14 +266,14 @@ def ask(q, sid):
         for k, v in mapping.items():
             print(f"  {k} -> {v if v else '(no bible match)'}")
 
-    # show GCIDE for any missing terms
+    # Show GCIDE definitions first
     if gcide_hits:
         for t, defs in gcide_hits.items():
             print(f"\nGCIDE definition for '{t}':\n")
             for d in defs[:5]:
                 print(" •", d.strip())
 
-    # full GCIDE mode if nothing matched Bible
+    # Continue with Bible even if GCIDE fired
     if not expanded_terms:
         return
 
