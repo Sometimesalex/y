@@ -300,13 +300,11 @@ def ask(q, sid):
         gc = GLOBAL_SENSES.get(syn, 1)
         delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
 
-        # relation boosts
         if syn in wn.entailments:
             delta *= 1.4
         if syn in wn.causes:
             delta *= 1.4
 
-        # domain conditioning via gloss
         gloss = wn.glosses.get(syn, "") or ""
         gwords = set(words(gloss))
 
@@ -319,9 +317,19 @@ def ask(q, sid):
 
     ranked.sort(reverse=True)
 
-    # ---- OUTPUT: clustered scripture instead of WordNet gloss ----
+    # -------- collapse duplicate verse clusters --------
 
-    for delta, syn in ranked[:5]:
+    CLUSTERS = {}
+    for delta, syn in ranked:
+        verseset = tuple(SYNSET_VERSES.get(syn, [])[:3])
+        if not verseset:
+            continue
+        if verseset not in CLUSTERS or delta > CLUSTERS[verseset][0]:
+            CLUSTERS[verseset] = (delta, syn)
+
+    collapsed = sorted(CLUSTERS.values(), reverse=True)
+
+    for delta, syn in collapsed[:5]:
         print(f"\n{delta:+.4f}")
         seen = set()
         for t in SYNSET_VERSES.get(syn, []):
