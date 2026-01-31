@@ -4,30 +4,96 @@ import re
 import uuid
 from pathlib import Path
 from collections import defaultdict
-from scripts.prolog_reader import load_glosses
 
-# Load data
+from prolog_reader import LocalWordNet
+from archaic_map import normalize_archaic
+
 DATA = Path("corpora/kjv/verses_enriched.json")
+GCIDE_PATH = Path("corpora/GCIDE/gcide.json")
 SESS = Path("sessions")
 SESS.mkdir(exist_ok=True)
 
-verses = json.loads(DATA.read_text())
-prolog_glosses = load_glosses()
-
 SHOW_REFS = "--refs" in sys.argv
-word_re = re.compile(r"[a-z]+")
 
-# Keyword categories
-PURPOSE = set("why wherefore purpose created sent called chosen will way truth life light love".split())
-PROCESS = set("how make build go come speak create give take rise walk live follow".split())
-DEFINE = set("what is are was were behold".split())
-TIME = set("when day days year years time season hour night morning".split())
-PLACE = set("where land city place mount river wilderness house garden earth heaven".split())
-AGENT = set("who he she they man men people lord god jesus david israel".split())
-OWNERSHIP = set("whose belong inheritance inherit given children house of".split())
+word_re = re.compile(r"[a-z]+")
 
 def words(t):
     return word_re.findall(t.lower())
+
+# ---------------- STOPWORDS ----------------
+
+STOPWORDS = set("""
+what do you about think is are was were the a an and or of to in on for with as by at from
+he she they them we us i me my your his her their our am so when
+""".split())
+
+# ---------------- ONTOLOGY ROOTS ----------------
+# stop hypernym climb before everything becomes "person"
+
+ONTO_ROOTS = {
+    "animal",
+    "beast",
+    "creature",
+    "mammal",
+    "organism",
+    "device",
+    "artifact",
+    "vehicle",
+    "instrument",
+    "entity"
+}
+
+# ---------------- LOAD DATA ----------------
+
+print("Loading verses...")
+verses = json.loads(DATA.read_text())
+print(f"Loaded {len(verses)} verses.")
+
+print("Tokenizing verses once (cache) + archaic + verb normalization...")
+VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
+
+VOCAB = set()
+for wlist in VERSE_WORDS:
+    VOCAB.update(wlist)
+print(f"Bible vocab size (with bridges): {len(VOCAB)}")
+
+# ---------------- LOAD GCIDE ----------------
+
+GCIDE = {}
+if GCIDE_PATH.exists():
+    print("Loading GCIDE...")
+    GCIDE = json.loads(GCIDE_PATH.read_text())
+    GCIDE = {k.lower(): v for k, v in GCIDE.items()}
+    print(f"GCIDE entries: {len(GCIDE)}")
+else:
+    print("GCIDE not found, skipping modern dictionary layer.")
+
+# ---------------- WORDNET ----------------
+
+print("Loading local WordNet...")
+wn = LocalWordNet()
+
+print("Building synset->words map...")
+SYNSET_TO_WORDS = defaultdict(set)
+for w, senses in wn.senses.items():
+    for s in senses:
+        SYNSET_TO_WORDS[s["synset"]].add(w)
+print(f"Synset->words entries: {len(SYNSET_TO_WORDS)}")
+
+# ---------------- GLOBAL BASELINE ----------------
+
+print("Building global sense baseline...")
+
+GLOBAL_SENSES = defaultdict(int)
+for wlist in VERSE_WORDS:
+    for w in wlist:
+        for m in wn.lookup(w):
+            GLOBAL_SENSES[m["synset"]] += 1
+
+GLOBAL_TOTAL = float(sum(GLOBAL_SENSES.values()))
+print("Global baseline built:", GLOBAL_TOTAL)
+
+# ---------------- INTENT ----------------
 
 def detect_intent(q):
     q = q.lower().strip()
@@ -36,118 +102,232 @@ def detect_intent(q):
             return i
     return "why"
 
-def score(v, intent):
-    w = words(v["text"])
-    if intent == "why":
-        return sum(1 for x in w if x in PURPOSE)*2 + v["agency"]*3 + v["compassion"]*2 + v["sentiment"]
-    if intent == "how":
-        return sum(1 for x in w if x in PROCESS)*2 + v["agency"]*3
-    if intent == "what":
-        return sum(1 for x in w if x in DEFINE)*2 + v["sentiment"]
-    if intent == "when":
-        return sum(1 for x in w if x in TIME)
-    if intent == "where":
-        return sum(1 for x in w if x in PLACE)
-    if intent == "who":
-        return sum(1 for x in w if x in AGENT) + v["agency"]*2
-    if intent == "whose":
-        return sum(1 for x in w if x in OWNERSHIP) + v["dominance"]
-    return 0
-
-def load_session(sid):
-    f = SESS / f"{sid}.json"
-    if f.exists():
-        return json.loads(f.read_text())
-    return {"history": [], "themes": defaultdict(int)}
-
-def save_session(sid, data):
-    (SESS / f"{sid}.json").write_text(json.dumps(data, indent=2))
-
-def summarize(rows):
-    theme = defaultdict(int)
-    for v in rows:
-        for w in words(v["text"]):
-            if w in PURPOSE: theme["purpose"] += 1
-            if w in PROCESS: theme["process"] += 1
-            if w in AGENT: theme["agent"] += 1
-    return sorted(theme.items(), key=lambda x: x[1], reverse=True)
+def intent_to_theme(intent):
+    mapping = {
+        "why": "purpose",
+        "how": "process",
+        "what": "define",
+        "when": "time",
+        "where": "place",
+        "who": "agent",
+        "whose": "ownership"
+    }
+    return mapping.get(intent, "purpose")
 
 def show(v):
     if SHOW_REFS:
-        loc = f'{v.get("book", "")} {v["chapter"]}:{v["verse"]}'
-        print(loc.strip())
+        print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
     print(v["text"])
-    print()
+
+# ---------------- NORMALIZATION ----------------
+
+def normalize_term(term):
+    t = term.lower()
+    cands = [t]
+
+    if len(t) > 3 and t.endswith("ies"):
+        cands.append(t[:-3] + "y")
+    if len(t) > 3 and t.endswith("es"):
+        cands.append(t[:-2])
+    if len(t) > 3 and t.endswith("s"):
+        cands.append(t[:-1])
+
+    out = []
+    seen = set()
+    for x in cands:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+
+# ---------------- SEMANTIC GRAPH ----------------
+
+def semantic_neighbors(synset, max_hops=1, include_derivations=True):
+    out = set()
+
+    rel_sets = [
+        getattr(wn, "entailments", {}),
+        getattr(wn, "causes", {}),
+        getattr(wn, "attributes", {}),
+        getattr(wn, "instances", {}),
+        getattr(wn, "part_mer", {}),
+        getattr(wn, "sub_mer", {}),
+        getattr(wn, "mem_mer", {}),
+        getattr(wn, "verb_groups", {}),
+        getattr(wn, "hypernyms", {}),
+        getattr(wn, "hyp", {}),
+        getattr(wn, "wn_hyp", {}),
+    ]
+
+    if include_derivations:
+        rel_sets.append(getattr(wn, "derivations", {}))
+
+    frontier = {synset}
+
+    for _ in range(max_hops):
+        nxt = set()
+        for s in frontier:
+            for rel in rel_sets:
+                for t in rel.get(s, []):
+                    if t not in out:
+                        nxt.add(t)
+                        out.add(t)
+        frontier = nxt
+
+    return out
+
+# ---------------- QUERY EXPANSION ----------------
+
+def expand_query_terms(raw_terms):
+    expanded = set()
+    mapping = {}
+
+    for t in raw_terms:
+        if t in VOCAB:
+            mapping[t] = [t]
+            expanded.add(t)
+            continue
+
+        senses = []
+        for form in normalize_term(t):
+            senses = wn.lookup(form)
+            if senses:
+                break
+
+        if not senses:
+            mapping[t] = []
+            continue
+
+        noun_senses = [m for m in senses if m.get("pos") == "n"]
+
+        if noun_senses:
+            seed = noun_senses
+            hops = 2
+            include_der = False
+        else:
+            seed = senses
+            hops = 1
+            include_der = True
+
+        seed_synsets = [m["synset"] for m in seed]
+        all_synsets = set(seed_synsets)
+
+        for s in seed_synsets:
+            all_synsets |= semantic_neighbors(s, max_hops=hops, include_derivations=include_der)
+
+        candidates = []
+        for syn in all_synsets:
+            for w in SYNSET_TO_WORDS.get(syn, []):
+                if w in ONTO_ROOTS:
+                    candidates.append(w)
+                elif w in VOCAB and w not in STOPWORDS:
+                    candidates.append(w)
+
+        # prefer ontology roots if any present
+        roots = [w for w in candidates if w in ONTO_ROOTS]
+        if roots:
+            candidates = roots
+
+        final = []
+        seen = set()
+        for w in candidates:
+            if w not in seen:
+                seen.add(w)
+                final.append(w)
+            if len(final) >= 4:
+                break
+
+        mapping[t] = final
+        expanded.update(final)
+
+    return expanded, mapping
+
+# ---------------- GCIDE FALLBACK ----------------
+
+def gcide_lookup(term):
+    for form in normalize_term(term):
+        if form in GCIDE:
+            return GCIDE[form]
+    return None
+
+# ---------------- MAIN QUERY ----------------
 
 def ask(q, sid):
-    sess = load_session(sid)
     intent = detect_intent(q)
+    raw_terms = [w for w in words(q) if w not in STOPWORDS]
 
-    scored = [(score(v, intent), v) for v in verses]
-    scored = [x for x in scored if x[0] > 0]
-    scored.sort(reverse=True, key=lambda x: x[0])
+    expanded_terms, mapping = expand_query_terms(raw_terms)
 
-    top = [v for _, v in scored[:10]]
+    print("\nQuery terms:", raw_terms if raw_terms else "(none)")
+    if mapping:
+        print("Term mapping:")
+        for k, v in mapping.items():
+            print(f"  {k} -> {v if v else '(no bible match)'}")
 
-    sess["history"].append({"q": q, "intent": intent})
-    themes = summarize(top)
-    for k, v in themes:
-        sess["themes"][k] += v
-    save_session(sid, sess)
+    if not expanded_terms:
+        print("\nGCIDE fallback engaged.")
+        for t in raw_terms:
+            defs = gcide_lookup(t)
+            if defs:
+                print(f"\nGCIDE definition for '{t}':\n")
+                for d in defs[:5]:
+                    print(" •", d.strip())
+        return
 
-    if top:
-        if themes:
-            print("You are being drawn toward:", ", ".join(t for t, _ in themes[:2]))
+    matched = []
+    LOCAL_SENSES = defaultdict(int)
+
+    for v, wlist in zip(verses, VERSE_WORDS):
+        if any(term in wlist for term in expanded_terms):
+            matched.append(v)
+            for tok in wlist:
+                if tok in expanded_terms:
+                    for m in wn.lookup(tok):
+                        LOCAL_SENSES[m["synset"]] += 1
+
+    print("\nYou are being drawn toward:", intent_to_theme(intent))
+
+    if matched:
+        for v in matched[:5]:
             print()
-        for v in top[:5]:
             show(v)
     else:
-        print("No relevant verses found.")
-        print()
-        # Fallback to WordNet
-        print("---\nRelated definitions from WordNet:")
-        for word in words(q):
-            gloss = prolog_glosses.get(word)
-            if gloss:
-                print(f"- {word}: {gloss}")
-        print()
-
-def quantify(q):
-    term = q.lower().replace("how many", "").replace("how much", "").strip()
-    hits = [v for v in verses if term in v["text"].lower()]
-    print(f"There are {len(hits)} occurrences related to '{term}'.\n")
-    for v in hits[:5]:
-        show(v)
-
-def compare(q):
-    parts = re.split(r"\bor\b", q.lower())
-    if len(parts) < 2:
-        print("Please provide two things to compare.")
+        print("\nNo matching verses found.")
         return
-    a = parts[0].replace("which", "").strip()
-    b = parts[1].strip()
-    A = [v for v in verses if a in v["text"].lower()]
-    B = [v for v in verses if b in v["text"].lower()]
-    if not A or not B:
-        print("Could not resolve comparison.")
-        return
-    def avg(m, r): return sum(v[m] for v in r) / len(r)
-    print("Comparison:")
-    for m in ["sentiment", "compassion", "violence", "agency"]:
-        print(m, round(avg(m, A), 4), "vs", round(avg(m, B), 4))
+
+    print("\n---\nContext-shifted meanings (Bible-derived clusters):\n")
+
+    ranked = []
+    local_total = sum(LOCAL_SENSES.values()) or 1.0
+
+    for syn, lc in LOCAL_SENSES.items():
+        gc = GLOBAL_SENSES.get(syn, 1)
+        delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
+        ranked.append((delta, syn))
+
+    ranked.sort(reverse=True)
+
+    for delta, syn in ranked[:5]:
+        verses_here = []
+        for v, wlist in zip(verses, VERSE_WORDS):
+            if any(w in wlist for w in SYNSET_TO_WORDS.get(syn, [])):
+                verses_here.append(v["text"])
+            if len(verses_here) >= 3:
+                break
+
+        print(f"\n{delta:+.4f}")
+        for t in verses_here:
+            print(" •", t)
+
+# ---------------- ENTRY ----------------
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: query.py \"question\"")
+        print("Usage: query_v2.py \"your question here\"")
         sys.exit()
 
     sid = uuid.uuid4().hex[:8]
-    q = " ".join([x for x in sys.argv[1:] if x != "--refs"])
+    q = " ".join(x for x in sys.argv[1:] if x != "--refs")
 
-    intent = detect_intent(q)
-    if intent in ["how many", "how much"]:
-        quantify(q)
-    elif intent == "which":
-        compare(q)
-    else:
-        ask(q, sid)
+    print(f"\nAsking: {q}")
+    ask(q, sid)
