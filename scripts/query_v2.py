@@ -23,11 +23,20 @@ def words(t):
 
 STOPWORDS = set("""
 what do you about think is are was were the a an and or of to in on for with as by at from
-he she they them we us i me my your his her their our
+he she they them we us i me my your his her their our should
+""".split())
+
+# ---------------- DOMAIN PRIORS ----------------
+
+DOMAIN_REWARD = set("""
+god lord jesus christ spirit soul breath created create earth dust heaven hell sin life living
+""".split())
+
+DOMAIN_PENALIZE = set("""
+prison guard broadcast television concert ammunition bomb lincoln center opera copy type
 """.split())
 
 # ---------------- SIMPLE VERB NORMALIZATION ----------------
-# lightweight morphology for common KJV past forms
 
 VERB_NORM = {
     "smote": "smite",
@@ -332,6 +341,15 @@ def ask(q, sid):
         if intent == "how":
             if syn in wn.verb_groups:
                 delta *= 1.3
+
+        # domain conditioning via gloss
+        gloss = wn.glosses.get(syn, "") or ""
+        gwords = set(words(gloss))
+
+        if gwords & DOMAIN_REWARD:
+            delta *= 1.15
+        if gwords & DOMAIN_PENALIZE:
+            delta *= 0.55
 
         ranked.append((delta, syn))
 
