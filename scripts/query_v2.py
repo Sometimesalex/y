@@ -236,7 +236,7 @@ def expand_query_terms(raw_terms):
 
     return expanded, mapping
 
-# ---------------- GCIDE FALLBACK ----------------
+# ---------------- GCIDE ----------------
 
 def gcide_lookup(term):
     for form in normalize_term(term):
@@ -252,20 +252,30 @@ def ask(q, sid):
 
     expanded_terms, mapping = expand_query_terms(raw_terms)
 
+    # per-term GCIDE fallback
+    gcide_hits = {}
+    for t in raw_terms:
+        mapped = mapping.get(t, [])
+        if not mapped:
+            defs = gcide_lookup(t)
+            if defs:
+                gcide_hits[t] = defs
+
     print("\nQuery terms:", raw_terms if raw_terms else "(none)")
     if mapping:
         print("Term mapping:")
         for k, v in mapping.items():
             print(f"  {k} -> {v if v else '(no bible match)'}")
 
+    # show GCIDE for any missing terms
+    if gcide_hits:
+        for t, defs in gcide_hits.items():
+            print(f"\nGCIDE definition for '{t}':\n")
+            for d in defs[:5]:
+                print(" •", d.strip())
+
+    # full GCIDE mode if nothing matched Bible
     if not expanded_terms:
-        print("\nGCIDE fallback engaged.")
-        for t in raw_terms:
-            defs = gcide_lookup(t)
-            if defs:
-                print(f"\nGCIDE definition for '{t}':\n")
-                for d in defs[:5]:
-                    print(" •", d.strip())
         return
 
     matched = []
