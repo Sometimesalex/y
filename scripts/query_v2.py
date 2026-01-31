@@ -41,7 +41,7 @@ print(f"Bible vocab size: {len(VOCAB)}")
 print("Loading local WordNet...")
 wn = LocalWordNet()
 
-# Build synset -> words map (needed for hypernym fallback)
+# Build synset -> words map
 print("Building synset->words map...")
 SYNSET_TO_WORDS = defaultdict(set)
 for w, senses in wn.senses.items():
@@ -88,24 +88,19 @@ def show(v):
         print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
     print(v["text"])
 
-# ---------------- FALLBACK HELPERS ----------------
+# ---------------- NORMALIZATION ----------------
 
 def normalize_term(term):
-    """
-    Return a list of candidate forms for a query term.
-    Handles simple plural -> singular and a couple common endings.
-    """
     t = term.lower()
     cands = [t]
 
     if len(t) > 3 and t.endswith("ies"):
-        cands.append(t[:-3] + "y")  # ladies -> lady
+        cands.append(t[:-3] + "y")
     if len(t) > 3 and t.endswith("es"):
-        cands.append(t[:-2])        # boxes -> box
+        cands.append(t[:-2])
     if len(t) > 3 and t.endswith("s"):
-        cands.append(t[:-1])        # birds -> bird
+        cands.append(t[:-1])
 
-    # de-dup while preserving order
     seen = set()
     out = []
     for x in cands:
@@ -114,14 +109,41 @@ def normalize_term(term):
             out.append(x)
     return out
 
+# ---------------- SEMANTIC GRAPH ----------------
+
+def semantic_neighbors(synset, max_hops=1):
+    out = set()
+
+    rel_sets = [
+        wn.entailments,
+        wn.causes,
+        wn.attributes,
+        wn.instances,
+        wn.part_mer,
+        wn.sub_mer,
+        wn.mem_mer,
+        wn.verb_groups,
+        wn.derivations,
+    ]
+
+    frontier = {synset}
+
+    for _ in range(max_hops):
+        nxt = set()
+        for s in frontier:
+            for rel in rel_sets:
+                for t in rel.get(s, []):
+                    if t not in out:
+                        nxt.add(t)
+                        out.add(t)
+        frontier = nxt
+
+    return out
+
 def hypernym_fallback_words(term, max_depth=6, max_hits=6):
-    """
-    Given a term, climb WordNet hypernyms (is-a) and return candidate
-    fallback words that actually appear in Bible VOCAB.
-    """
-    # try each normalized form until we get senses
     senses = []
     used_form = None
+
     for form in normalize_term(term):
         senses = wn.lookup(form)
         if senses:
@@ -129,27 +151,25 @@ def hypernym_fallback_words(term, max_depth=6, max_hits=6):
             break
 
     if not senses:
-        return used_form, []  # no WordNet entry to climb
+        return used_form, []
 
-    # BFS up hypernym graph starting from all synsets of the term
     start_synsets = [m["synset"] for m in senses]
     q = deque([(syn, 0) for syn in start_synsets])
     seen = set(start_synsets)
 
     candidates = []
+
     while q:
         syn, depth = q.popleft()
         if depth >= max_depth:
             continue
 
-        # Move up: syn -> hypernyms
         for parent in wn.hypernyms.get(syn, []):
             if parent in seen:
                 continue
             seen.add(parent)
             q.append((parent, depth + 1))
 
-            # Convert parent synset back into words (lemmas) and keep those in Bible
             for w in SYNSET_TO_WORDS.get(parent, []):
                 if w in VOCAB and w not in STOPWORDS:
                     candidates.append(w)
@@ -159,31 +179,53 @@ def hypernym_fallback_words(term, max_depth=6, max_hits=6):
     return used_form, candidates
 
 def expand_query_terms(raw_terms):
-    """
-    raw_terms: list of query terms after stopword filtering
-    returns (expanded_terms_set, mapping_dict)
-    mapping_dict: original_term -> list of terms actually used for scripture matching
-    """
     expanded = set()
     mapping = {}
 
     for t in raw_terms:
-        # if term exists in bible, use it
         if t in VOCAB:
             mapping[t] = [t]
             expanded.add(t)
             continue
 
-        # otherwise try hypernym fallback (via WordNet)
-        used_form, cands = hypernym_fallback_words(t)
+        senses = []
+        for form in normalize_term(t):
+            senses = wn.lookup(form)
+            if senses:
+                break
 
-        if cands:
-            # pick a few best candidates (already filtered to VOCAB)
-            mapping[t] = cands[:3]
-            expanded.update(mapping[t])
-        else:
-            # no fallback possible
+        if not senses:
             mapping[t] = []
+            continue
+
+        seed_synsets = [m["synset"] for m in senses]
+        all_synsets = set(seed_synsets)
+
+        for s in seed_synsets:
+            all_synsets |= semantic_neighbors(s)
+
+        for s in seed_synsets:
+            _, hypers = hypernym_fallback_words(t)
+            for w in hypers:
+                all_synsets.add(w)
+
+        candidates = []
+        for syn in all_synsets:
+            for w in SYNSET_TO_WORDS.get(syn, []):
+                if w in VOCAB and w not in STOPWORDS:
+                    candidates.append(w)
+
+        seen = set()
+        final = []
+        for w in candidates:
+            if w not in seen:
+                seen.add(w)
+                final.append(w)
+            if len(final) >= 4:
+                break
+
+        mapping[t] = final
+        expanded.update(final)
 
     return expanded, mapping
 
@@ -193,7 +235,6 @@ def ask(q, sid):
     intent = detect_intent(q)
     sess_file = SESS / f"{sid}.json"
 
-    # session storage kept simple for now
     if sess_file.exists():
         sess = json.loads(sess_file.read_text())
     else:
@@ -203,7 +244,6 @@ def ask(q, sid):
 
     expanded_terms, mapping = expand_query_terms(raw_terms)
 
-    # Show how we expanded/fell back
     print("\nQuery terms:", raw_terms if raw_terms else "(none)")
     if mapping:
         print("Term mapping:")
@@ -214,8 +254,7 @@ def ask(q, sid):
                 print(f"  {k} -> (no bible/wordnet match)")
 
     if not expanded_terms:
-        print("\nNo usable terms found after stopword removal + fallback.")
-        print("Try a different phrasing or a more general term.")
+        print("\nNo usable terms found.")
         return
 
     matched = []
@@ -224,8 +263,6 @@ def ask(q, sid):
     for v, wlist in zip(verses, VERSE_WORDS):
         if any(term in wlist for term in expanded_terms):
             matched.append(v)
-
-            # count senses for the expanded terms only
             for tok in wlist:
                 if tok in expanded_terms:
                     for m in wn.lookup(tok):
@@ -238,7 +275,7 @@ def ask(q, sid):
             print()
             show(v)
     else:
-        print("\nNo matching verses found even after fallback terms.")
+        print("\nNo matching verses found.")
         return
 
     print("\n---\nContext-shifted meanings:\n")
@@ -249,6 +286,12 @@ def ask(q, sid):
     for syn, lc in LOCAL_SENSES.items():
         gc = GLOBAL_SENSES.get(syn, 1)
         delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
+
+        if syn in wn.entailments:
+            delta *= 1.4
+        if syn in wn.causes:
+            delta *= 1.4
+
         ranked.append((delta, syn))
 
     ranked.sort(reverse=True)
