@@ -14,15 +14,22 @@ SESS.mkdir(exist_ok=True)
 
 SHOW_REFS = "--refs" in sys.argv
 
+# toggle analogue mode
+BUT_ANALOG = True
+
 word_re = re.compile(r"[a-z]+")
 
 def words(t):
     return word_re.findall(t.lower())
 
+# ---------------- STOPWORDS ----------------
+
 STOPWORDS = set("""
 what do you about think is are was were the a an and or of to in on for with as by at from
-he she they them we us i me my your his her their our should
+he she they them we us i me my your his her their our
 """.split())
+
+# ---------------- LOAD DATA ----------------
 
 print("Loading verses...")
 verses = json.loads(DATA.read_text())
@@ -34,20 +41,29 @@ VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
 VOCAB = set()
 for wlist in VERSE_WORDS:
     VOCAB.update(wlist)
+
 print(f"Bible vocab size (with bridges): {len(VOCAB)}")
 
 print("Loading local WordNet...")
 wn = LocalWordNet()
 
+# ---------------- SYNSET MAP ----------------
+
 print("Building synset->words map...")
 SYNSET_TO_WORDS = defaultdict(set)
+
 for w, senses in wn.senses.items():
     for s in senses:
         SYNSET_TO_WORDS[s["synset"]].add(w)
+
 print(f"Synset->words entries: {len(SYNSET_TO_WORDS)}")
 
+# ---------------- GLOBAL BASELINE ----------------
+
 print("Building global sense baseline...")
+
 GLOBAL_SENSES = defaultdict(int)
+
 for wlist in VERSE_WORDS:
     for w in wlist:
         for m in wn.lookup(w):
@@ -55,6 +71,8 @@ for wlist in VERSE_WORDS:
 
 GLOBAL_TOTAL = float(sum(GLOBAL_SENSES.values()))
 print("Global baseline built:", GLOBAL_TOTAL)
+
+# ---------------- INTENT ----------------
 
 def detect_intent(q):
     q = q.lower().strip()
@@ -79,29 +97,152 @@ def show(v):
         print(f"{v['book']} {v['chapter']}:{v['verse']} —", end=" ")
     print(v["text"])
 
+# ---------------- NORMALIZATION ----------------
+
+def normalize_term(term):
+    t = term.lower()
+    cands = [t]
+
+    if len(t) > 3 and t.endswith("ies"):
+        cands.append(t[:-3] + "y")
+    if len(t) > 3 and t.endswith("es"):
+        cands.append(t[:-2])
+    if len(t) > 3 and t.endswith("s"):
+        cands.append(t[:-1])
+
+    out = []
+    seen = set()
+    for x in cands:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+
+    return out
+
+# ---------------- SEMANTIC GRAPH ----------------
+
+def semantic_neighbors(synset, max_hops=1):
+    rel_sets = [
+        wn.entailments,
+        wn.causes,
+        wn.attributes,
+        wn.instances,
+        wn.part_mer,
+        wn.sub_mer,
+        wn.mem_mer,
+        wn.verb_groups,
+        wn.derivations,
+    ]
+
+    out = set()
+    frontier = {synset}
+
+    for _ in range(max_hops):
+        nxt = set()
+        for s in frontier:
+            for rel in rel_sets:
+                for t in rel.get(s, []):
+                    if t not in out:
+                        out.add(t)
+                        nxt.add(t)
+        frontier = nxt
+
+    return out
+
+# ---------------- NEAREST BIBLICAL ANALOGUE ----------------
+
+def nearest_biblical_analogues(term, max_depth=6, max_hits=6):
+    senses = wn.lookup(term)
+    if not senses:
+        return []
+
+    start = [m["synset"] for m in senses]
+
+    q = deque([(s, 0) for s in start])
+    seen = set(start)
+
+    analogues = []
+
+    while q:
+        syn, depth = q.popleft()
+        if depth >= max_depth:
+            continue
+
+        for parent in wn.hypernyms.get(syn, []):
+            if parent in seen:
+                continue
+            seen.add(parent)
+            q.append((parent, depth + 1))
+
+            for w in SYNSET_TO_WORDS.get(parent, []):
+                if w in VOCAB and w not in STOPWORDS:
+                    if w not in analogues:
+                        analogues.append(w)
+                        if len(analogues) >= max_hits:
+                            return analogues
+
+    return analogues
+
+# ---------------- QUERY EXPANSION ----------------
+
 def expand_query_terms(raw_terms):
     expanded = set()
     mapping = {}
+    missing = []
 
     for t in raw_terms:
-        # ---------- HARD CORPUS GATE ----------
-        # If the literal word never appears in the Bible, STOP.
-        if t not in VOCAB:
-            mapping[t] = []
+        if t in VOCAB:
+            expanded.add(t)
+            mapping[t] = [t]
             continue
 
-        # otherwise allow normal expansion
-        mapping[t] = [t]
-        expanded.add(t)
+        senses = []
+        for form in normalize_term(t):
+            senses = wn.lookup(form)
+            if senses:
+                break
 
-    return expanded, mapping
+        if not senses:
+            mapping[t] = []
+            missing.append(t)
+            continue
+
+        seed = [m["synset"] for m in senses]
+        all_syn = set(seed)
+
+        for s in seed:
+            all_syn |= semantic_neighbors(s)
+
+        candidates = []
+
+        for syn in all_syn:
+            for w in SYNSET_TO_WORDS.get(syn, []):
+                if w in VOCAB and w not in STOPWORDS:
+                    candidates.append(w)
+
+        final = []
+        seen = set()
+        for w in candidates:
+            if w not in seen:
+                seen.add(w)
+                final.append(w)
+            if len(final) >= 4:
+                break
+
+        mapping[t] = final
+        expanded.update(final)
+
+    return expanded, mapping, missing
+
+# ---------------- MAIN ----------------
 
 def ask(q, sid):
     intent = detect_intent(q)
 
-    raw_terms = [w for w in words(q) if w not in STOPWORDS and w != intent]
+    intent_word = intent.split()[0]
+    raw_terms = [w for w in words(q) if w not in STOPWORDS and w != intent_word]
 
-    expanded_terms, mapping = expand_query_terms(raw_terms)
+    expanded_terms, mapping, missing = expand_query_terms(raw_terms)
 
     print("\nQuery terms:", raw_terms if raw_terms else "(none)")
     print("Term mapping:")
@@ -111,14 +252,22 @@ def ask(q, sid):
         else:
             print(f"  {k} -> (no bible match)")
 
-    missing = [k for k, v in mapping.items() if not v]
     if missing:
         print("\nConcepts not present in this corpus:", missing)
+
+        if BUT_ANALOG:
+            for t in missing:
+                analogs = nearest_biblical_analogues(t)
+                if analogs:
+                    print(f"\nNearest biblical analogues for '{t}' (comparative, not equivalent):")
+                    for a in analogs:
+                        print(" •", a)
+
+    if not expanded_terms:
         return
 
     matched = []
-    LOCAL = defaultdict(int)
-    SYNSET_VERSES = defaultdict(list)
+    LOCAL_SENSES = defaultdict(int)
 
     for v, wlist in zip(verses, VERSE_WORDS):
         if any(t in wlist for t in expanded_terms):
@@ -126,11 +275,12 @@ def ask(q, sid):
             for tok in wlist:
                 if tok in expanded_terms:
                     for m in wn.lookup(tok):
-                        syn = m["synset"]
-                        LOCAL[syn] += 1
-                        SYNSET_VERSES[syn].append(v["text"])
+                        LOCAL_SENSES[m["synset"]] += 1
 
     print("\nYou are being drawn toward:", intent_to_theme(intent))
+
+    if not matched:
+        return
 
     for v in matched[:5]:
         print()
@@ -139,25 +289,27 @@ def ask(q, sid):
     print("\n---\nContext-shifted meanings (Bible-derived clusters):\n")
 
     ranked = []
-    local_total = sum(LOCAL.values()) or 1.0
+    local_total = sum(LOCAL_SENSES.values()) or 1
 
-    for syn, lc in LOCAL.items():
+    for syn, lc in LOCAL_SENSES.items():
         gc = GLOBAL_SENSES.get(syn, 1)
         delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
+
         ranked.append((delta, syn))
 
     ranked.sort(reverse=True)
 
-    CLUSTERS = {}
-    for delta, syn in ranked:
-        verseset = tuple(SYNSET_VERSES[syn][:3])
-        if verseset and verseset not in CLUSTERS:
-            CLUSTERS[verseset] = delta
-
-    for verseset, delta in list(CLUSTERS.items())[:5]:
+    for delta, syn in ranked[:5]:
         print(f"\n{delta:+.4f}")
-        for t in verseset:
-            print(" •", t)
+        verses_out = 0
+        for v, wlist in zip(verses, VERSE_WORDS):
+            if verses_out >= 3:
+                break
+            if any(t in wlist for t in expanded_terms):
+                print(" •", v["text"])
+                verses_out += 1
+
+# ---------------- ENTRY ----------------
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
