@@ -193,6 +193,11 @@ def expand_query_terms(raw_terms):
     mapping = {}
 
     for t in raw_terms:
+        # ---- out-of-corpus guard ----
+        if t not in VOCAB and not wn.lookup(t):
+            mapping[t] = []
+            continue
+
         if t in VOCAB:
             mapping[t] = [t]
             expanded.add(t)
@@ -262,6 +267,12 @@ def ask(q, sid):
                 print(f"  {k} -> {v}")
             else:
                 print(f"  {k} -> (no bible/wordnet match)")
+
+    # ---- out-of-corpus reporting ----
+    missing = [k for k, v in mapping.items() if not v]
+    if missing:
+        print("\nConcepts not present in this corpus:", missing)
+        return
 
     if not expanded_terms:
         print("\nNo usable terms found.")
