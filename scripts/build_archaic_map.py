@@ -1,0 +1,4 @@
+ARCHAIC = {
+   "charity": ["love"],
+   ...
+}
