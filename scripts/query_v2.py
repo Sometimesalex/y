@@ -3,7 +3,7 @@ import sys
 import re
 import uuid
 from pathlib import Path
-from collections import defaultdict, deque
+from collections import defaultdict
 
 from prolog_reader import LocalWordNet
 from archaic_map import normalize_archaic
@@ -47,7 +47,6 @@ GCIDE = {}
 if GCIDE_PATH.exists():
     print("Loading GCIDE...")
     GCIDE = json.loads(GCIDE_PATH.read_text())
-    # normalize keys
     GCIDE = {k.lower(): v for k, v in GCIDE.items()}
     print(f"GCIDE entries: {len(GCIDE)}")
 else:
@@ -127,20 +126,29 @@ def normalize_term(term):
 
 # ---------------- SEMANTIC GRAPH ----------------
 
-def semantic_neighbors(synset, max_hops=1):
+def semantic_neighbors(synset, max_hops=1, include_derivations=True, include_hypernyms=True):
     out = set()
 
     rel_sets = [
-        wn.entailments,
-        wn.causes,
-        wn.attributes,
-        wn.instances,
-        wn.part_mer,
-        wn.sub_mer,
-        wn.mem_mer,
-        wn.verb_groups,
-        wn.derivations,
+        getattr(wn, "entailments", {}),
+        getattr(wn, "causes", {}),
+        getattr(wn, "attributes", {}),
+        getattr(wn, "instances", {}),
+        getattr(wn, "part_mer", {}),
+        getattr(wn, "sub_mer", {}),
+        getattr(wn, "mem_mer", {}),
+        getattr(wn, "verb_groups", {}),
     ]
+
+    if include_hypernyms:
+        rel_sets.extend([
+            getattr(wn, "hypernyms", {}),
+            getattr(wn, "hyp", {}),
+            getattr(wn, "wn_hyp", {}),
+        ])
+
+    if include_derivations:
+        rel_sets.append(getattr(wn, "derivations", {}))
 
     frontier = {synset}
 
@@ -155,6 +163,8 @@ def semantic_neighbors(synset, max_hops=1):
         frontier = nxt
 
     return out
+
+# ---------------- QUERY EXPANSION ----------------
 
 def expand_query_terms(raw_terms):
     expanded = set()
@@ -176,17 +186,41 @@ def expand_query_terms(raw_terms):
             mapping[t] = []
             continue
 
-        seed_synsets = [m["synset"] for m in senses]
+        noun_senses = [m for m in senses if m.get("pos") == "n"]
+
+        if noun_senses:
+            seed = noun_senses
+            include_der = False
+            hops = 2
+        else:
+            seed = senses
+            include_der = True
+            hops = 1
+
+        seed_synsets = [m["synset"] for m in seed]
         all_synsets = set(seed_synsets)
 
         for s in seed_synsets:
-            all_synsets |= semantic_neighbors(s)
+            all_synsets |= semantic_neighbors(
+                s,
+                max_hops=hops,
+                include_derivations=include_der,
+                include_hypernyms=True
+            )
 
         candidates = []
         for syn in all_synsets:
             for w in SYNSET_TO_WORDS.get(syn, []):
                 if w in VOCAB and w not in STOPWORDS:
                     candidates.append(w)
+
+        if noun_senses:
+            def is_nounish(word):
+                for m in wn.lookup(word):
+                    if m.get("pos") == "n":
+                        return True
+                return False
+            candidates.sort(key=lambda w: (not is_nounish(w), w))
 
         final = []
         seen = set()
@@ -214,7 +248,6 @@ def gcide_lookup(term):
 
 def ask(q, sid):
     intent = detect_intent(q)
-
     raw_terms = [w for w in words(q) if w not in STOPWORDS]
 
     expanded_terms, mapping = expand_query_terms(raw_terms)
@@ -223,14 +256,10 @@ def ask(q, sid):
     if mapping:
         print("Term mapping:")
         for k, v in mapping.items():
-            if v:
-                print(f"  {k} -> {v}")
-            else:
-                print(f"  {k} -> (no bible match)")
+            print(f"  {k} -> {v if v else '(no bible match)'}")
 
-    # -------- GCIDE MODE --------
     if not expanded_terms:
-        print("\nConcepts not present in this corpus:", raw_terms)
+        print("\nGCIDE fallback engaged.")
         for t in raw_terms:
             defs = gcide_lookup(t)
             if defs:
