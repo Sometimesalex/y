@@ -7,19 +7,16 @@ from prolog_reader import LocalWordNet
 
 DATA = Path("corpora/kjv/verses_enriched.json")
 
-# paste your TRUE archaic list here (from last output)
 ARCHAIC = [
-"shall","unto","ye","thee","shalt","saith","thine","spake","smote","dwelt","begat",
-"thyself","whosoever","wherein","lo","beside","hid","whither","didst","wherewith",
-"ought","sware","forsaken","shouldest","whereof","cherubims","forasmuch","sitteth"
+"unto","ye","thee","thine","saith","spake","begat","whither","wherewith",
+"whosoever","whoso","forasmuch","lo","sware","sitteth","didst","shouldest"
 ]
 
 word_re = re.compile(r"[a-z]+")
 
 STOPWORDS = set("""
-the and of to that for his they is him them thy was which my their from when this were upon you
-came had into her we your against if these our did what she among should whom nor took how than
-gave those would without where until whose told seen died having cannot women began whether could
+i he she they we you thou him her them us my thy your his their our in on at to of and
+be is was were been have hath had do did doth shall will would not a an that this these
 """.split())
 
 def words(t):
@@ -28,41 +25,56 @@ def words(t):
 print("Loading verses...")
 verses = json.loads(DATA.read_text())
 
+print("Tokenizing...")
+VERSE_WORDS = [words(v["text"]) for v in verses]
+
 print("Loading WordNet...")
 wn = LocalWordNet()
 
-print("Indexing verse contexts...")
-contexts = defaultdict(list)
+# global frequencies
+GLOBAL = Counter()
+for wlist in VERSE_WORDS:
+    GLOBAL.update(wlist)
 
-for v in verses:
-    toks = words(v["text"])
-    for a in ARCHAIC:
-        if a in toks:
-            contexts[a].extend(toks)
+TOTAL_GLOBAL = sum(GLOBAL.values())
 
-print("\nBuilding mappings...\n")
+print("Building mappings...\n")
 
 mapping = {}
 
-for a, toks in contexts.items():
-    cnt = Counter(toks)
+for archaic in ARCHAIC:
+    LOCAL = Counter()
 
-    # remove self + stopwords + archaic
-    for bad in STOPWORDS | set(ARCHAIC) | {a}:
-        cnt.pop(bad, None)
+    for wlist in VERSE_WORDS:
+        if archaic in wlist:
+            LOCAL.update(wlist)
 
-    # keep only WordNet-known words
-    modern = []
-    for w, c in cnt.most_common():
-        if wn.lookup(w):
-            modern.append((w, c))
-        if len(modern) >= 5:
-            break
+    if not LOCAL:
+        continue
 
-    if modern:
-        mapping[a] = [w for w, _ in modern]
+    candidates = []
 
-# emit python dict
+    for w, lc in LOCAL.items():
+        if w == archaic or w in STOPWORDS:
+            continue
+
+        if not wn.lookup(w):
+            continue
+
+        gc = GLOBAL[w]
+
+        # contrastive score
+        score = (lc / sum(LOCAL.values())) - (gc / TOTAL_GLOBAL)
+
+        candidates.append((score, w))
+
+    candidates.sort(reverse=True)
+
+    top = [w for s, w in candidates[:5] if s > 0]
+
+    if top:
+        mapping[archaic] = top
+
 print("ARCHAIC = {")
 for k, v in mapping.items():
     print(f'    "{k}": {v},')
