@@ -205,4 +205,113 @@ def expand_query_terms(raw_terms):
             all_synsets |= semantic_neighbors(s)
 
         _, hypers = hypernym_fallback_words(t)
-        for w in hype
+        for w in hypers:
+            all_synsets.add(w)
+
+        candidates = []
+        for syn in all_synsets:
+            for w in SYNSET_TO_WORDS.get(syn, []):
+                if w in VOCAB and w not in STOPWORDS:
+                    candidates.append(w)
+
+        seen = set()
+        final = []
+        for w in candidates:
+            if w not in seen:
+                seen.add(w)
+                final.append(w)
+            if len(final) >= 4:
+                break
+
+        mapping[t] = final
+        expanded.update(final)
+
+    return expanded, mapping
+
+# ---------------- MAIN QUERY ----------------
+
+def ask(q, sid):
+    intent = detect_intent(q)
+    sess_file = SESS / f"{sid}.json"
+
+    if sess_file.exists():
+        sess = json.loads(sess_file.read_text())
+    else:
+        sess = {"q": q, "intent": intent}
+
+    intent_word = intent.split()[0]
+    raw_terms = [w for w in words(q) if w not in STOPWORDS and w != intent_word]
+
+    expanded_terms, mapping = expand_query_terms(raw_terms)
+
+    print("\nQuery terms:", raw_terms if raw_terms else "(none)")
+    if mapping:
+        print("Term mapping:")
+        for k, v in mapping.items():
+            if v:
+                print(f"  {k} -> {v}")
+            else:
+                print(f"  {k} -> (no bible/wordnet match)")
+
+    if not expanded_terms:
+        print("\nNo usable terms found.")
+        return
+
+    matched = []
+    LOCAL_SENSES = defaultdict(int)
+
+    for v, wlist in zip(verses, VERSE_WORDS):
+        if any(term in wlist for term in expanded_terms):
+            matched.append(v)
+            for tok in wlist:
+                if tok in expanded_terms:
+                    for m in wn.lookup(tok):
+                        LOCAL_SENSES[m["synset"]] += 1
+
+    print("\nYou are being drawn toward:", intent_to_theme(intent))
+
+    if matched:
+        for v in matched[:5]:
+            print()
+            show(v)
+    else:
+        print("\nNo matching verses found.")
+        return
+
+    print("\n---\nContext-shifted meanings:\n")
+
+    ranked = []
+    local_total = sum(LOCAL_SENSES.values()) or 1
+
+    for syn, lc in LOCAL_SENSES.items():
+        gc = GLOBAL_SENSES.get(syn, 1)
+        delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
+
+        if syn in wn.entailments:
+            delta *= 1.4
+        if syn in wn.causes:
+            delta *= 1.4
+
+        ranked.append((delta, syn))
+
+    ranked.sort(reverse=True)
+
+    for delta, syn in ranked[:10]:
+        gloss = wn.glosses.get(syn)
+        if gloss:
+            print(f"{delta:+.4f} — {gloss}")
+
+    sess_file.write_text(json.dumps(sess, indent=2))
+
+# ---------------- ENTRY ----------------
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: query_v2.py \"your question here\"")
+        sys.exit()
+
+    sid = uuid.uuid4().hex[:8]
+    q = " ".join(x for x in sys.argv[1:] if x != "--refs")
+
+    print(f"\nAsking: {q}")
+    ask(q, sid)
