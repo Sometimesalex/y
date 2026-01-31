@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 sessions/
 
+gcide-0.54/
+corpora/gcide/
