@@ -1,7 +1,7 @@
 import json
 import re
 from pathlib import Path
-from collections import Counter, defaultdict
+from collections import Counter
 
 from prolog_reader import LocalWordNet
 
@@ -17,6 +17,11 @@ word_re = re.compile(r"[a-z]+")
 STOPWORDS = set("""
 i he she they we you thou him her them us my thy your his their our in on at to of and
 be is was were been have hath had do did doth shall will would not a an that this these
+me it as but by or if why day even
+""".split())
+
+NARRATIVE = set("""
+lord said saying god behold moses israel jacob abraham
 """.split())
 
 def words(t):
@@ -35,10 +40,16 @@ wn = LocalWordNet()
 GLOBAL = Counter()
 for wlist in VERSE_WORDS:
     GLOBAL.update(wlist)
-
 TOTAL_GLOBAL = sum(GLOBAL.values())
 
-print("Building mappings...\n")
+def dominant_pos(word):
+    senses = wn.lookup(word)
+    if not senses:
+        return None
+    cnt = Counter(m["pos"] for m in senses)
+    return cnt.most_common(1)[0][0]
+
+print("\nBuilding refined mappings...\n")
 
 mapping = {}
 
@@ -52,25 +63,32 @@ for archaic in ARCHAIC:
     if not LOCAL:
         continue
 
-    candidates = []
+    archaic_pos = dominant_pos(archaic)
+
+    scored = []
 
     for w, lc in LOCAL.items():
-        if w == archaic or w in STOPWORDS:
+        if w == archaic or w in STOPWORDS or w in NARRATIVE:
             continue
 
-        if not wn.lookup(w):
+        senses = wn.lookup(w)
+        if not senses:
             continue
+
+        if archaic_pos:
+            wpos = dominant_pos(w)
+            if wpos != archaic_pos:
+                continue
 
         gc = GLOBAL[w]
-
-        # contrastive score
         score = (lc / sum(LOCAL.values())) - (gc / TOTAL_GLOBAL)
 
-        candidates.append((score, w))
+        if score > 0:
+            scored.append((score, w))
 
-    candidates.sort(reverse=True)
+    scored.sort(reverse=True)
 
-    top = [w for s, w in candidates[:5] if s > 0]
+    top = [w for s, w in scored[:4]]
 
     if top:
         mapping[archaic] = top
