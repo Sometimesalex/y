@@ -101,6 +101,23 @@ class LocalWordNet:
         self.similar = load_relations("wn_sim.pl")
         self.derivations = load_relations("wn_der.pl")
 
+        # new semantic power
+        self.entailments = load_relations("wn_ent.pl")
+        self.causes      = load_relations("wn_cs.pl")
+        self.attributes  = load_relations("wn_at.pl")
+        self.instances   = load_relations("wn_ins.pl")
+
+        # part-whole
+        self.part_mer    = load_relations("wn_mp.pl")
+        self.sub_mer     = load_relations("wn_ms.pl")
+        self.mem_mer     = load_relations("wn_mm.pl")
+
+        # morphology / grammar
+        self.participles = load_relations("wn_ppl.pl")
+        self.pertains    = load_relations("wn_per.pl")
+        self.verb_groups = load_relations("wn_vgp.pl")
+        self.frames      = load_relations("wn_fr.pl")
+
         print("WordNet ready.\n")
 
     def lookup(self, word):
