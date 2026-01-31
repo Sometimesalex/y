@@ -26,7 +26,7 @@ what do you about think is are was were the a an and or of to in on for with as 
 he she they them we us i me my your his her their our should
 """.split())
 
-# ---------------- DOMAIN PRIORS ----------------
+# ---------------- DOMAIN CONDITIONING ----------------
 
 DOMAIN_REWARD = set("""
 god lord jesus christ spirit soul breath created create earth dust heaven hell sin life living
@@ -36,30 +36,6 @@ DOMAIN_PENALIZE = set("""
 prison guard broadcast television concert ammunition bomb lincoln center opera copy type
 """.split())
 
-# ---------------- SIMPLE VERB NORMALIZATION ----------------
-
-VERB_NORM = {
-    "smote": "smite",
-    "dwelt": "dwell",
-    "spake": "speak",
-    "sware": "swear",
-    "slept": "sleep",
-    "ran": "run",
-    "arose": "arise",
-    "sat": "sit",
-    "begat": "beget",
-    "didst": "do",
-    "sitteth": "sit",
-}
-
-def normalize_verbs(tokens):
-    out = []
-    for t in tokens:
-        out.append(t)
-        if t in VERB_NORM:
-            out.append(VERB_NORM[t])
-    return out
-
 # ---------------- LOAD DATA ----------------
 
 print("Loading verses...")
@@ -67,12 +43,7 @@ verses = json.loads(DATA.read_text())
 print(f"Loaded {len(verses)} verses.")
 
 print("Tokenizing verses once (cache) + archaic + verb normalization...")
-VERSE_WORDS = []
-for v in verses:
-    toks = words(v["text"])
-    toks = normalize_archaic(toks)
-    toks = normalize_verbs(toks)
-    VERSE_WORDS.append(toks)
+VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
 
 VOCAB = set()
 for wlist in VERSE_WORDS:
@@ -94,13 +65,13 @@ print(f"Synset->words entries: {len(SYNSET_TO_WORDS)}")
 
 print("Building global sense baseline...")
 
-GLOBAL_SENSES = defaultdict(float)
+GLOBAL_SENSES = defaultdict(int)
 for wlist in VERSE_WORDS:
     for w in wlist:
         for m in wn.lookup(w):
-            GLOBAL_SENSES[m["synset"]] += 1.0
+            GLOBAL_SENSES[m["synset"]] += 1
 
-GLOBAL_TOTAL = sum(GLOBAL_SENSES.values())
+GLOBAL_TOTAL = float(sum(GLOBAL_SENSES.values()))
 print("Global baseline built:", GLOBAL_TOTAL)
 
 # ---------------- INTENT ----------------
@@ -190,7 +161,7 @@ def hypernym_fallback_words(term, max_depth=6, max_hits=6):
             break
 
     if not senses:
-        return None, []
+        return []
 
     start_synsets = [m["synset"] for m in senses]
     q = deque([(syn, 0) for syn in start_synsets])
@@ -213,9 +184,9 @@ def hypernym_fallback_words(term, max_depth=6, max_hits=6):
                 if w in VOCAB and w not in STOPWORDS:
                     candidates.append(w)
                     if len(candidates) >= max_hits:
-                        return None, candidates
+                        return candidates
 
-    return None, candidates
+    return candidates
 
 def expand_query_terms(raw_terms):
     expanded = set()
@@ -243,15 +214,15 @@ def expand_query_terms(raw_terms):
         for s in seed_synsets:
             all_synsets |= semantic_neighbors(s)
 
-        _, hypers = hypernym_fallback_words(t)
-        for w in hypers:
-            all_synsets.add(w)
+        hypers = hypernym_fallback_words(t)
 
         candidates = []
         for syn in all_synsets:
             for w in SYNSET_TO_WORDS.get(syn, []):
                 if w in VOCAB and w not in STOPWORDS:
                     candidates.append(w)
+
+        candidates.extend(hypers)
 
         seen = set()
         final = []
@@ -297,7 +268,8 @@ def ask(q, sid):
         return
 
     matched = []
-    LOCAL_SENSES = defaultdict(float)
+    LOCAL_SENSES = defaultdict(int)
+    SYNSET_VERSES = defaultdict(list)
 
     for v, wlist in zip(verses, VERSE_WORDS):
         if any(term in wlist for term in expanded_terms):
@@ -305,15 +277,9 @@ def ask(q, sid):
             for tok in wlist:
                 if tok in expanded_terms:
                     for m in wn.lookup(tok):
-                        weight = 1.0
-
-                        # POS conditioning
-                        if intent == "how" and m["pos"] != "v":
-                            weight = 0.3
-                        if intent == "what" and m["pos"] != "n":
-                            weight = 0.3
-
-                        LOCAL_SENSES[m["synset"]] += weight
+                        syn = m["synset"]
+                        LOCAL_SENSES[syn] += 1
+                        SYNSET_VERSES[syn].append(v["text"])
 
     print("\nYou are being drawn toward:", intent_to_theme(intent))
 
@@ -325,22 +291,20 @@ def ask(q, sid):
         print("\nNo matching verses found.")
         return
 
-    print("\n---\nContext-shifted meanings:\n")
+    print("\n---\nContext-shifted meanings (Bible-derived clusters):\n")
 
     ranked = []
     local_total = sum(LOCAL_SENSES.values()) or 1.0
 
     for syn, lc in LOCAL_SENSES.items():
-        gc = GLOBAL_SENSES.get(syn, 1.0)
+        gc = GLOBAL_SENSES.get(syn, 1)
         delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
 
-        # intent-conditioned relation boosts
-        if intent == "why":
-            if syn in wn.causes or syn in wn.entailments:
-                delta *= 1.6
-        if intent == "how":
-            if syn in wn.verb_groups:
-                delta *= 1.3
+        # relation boosts
+        if syn in wn.entailments:
+            delta *= 1.4
+        if syn in wn.causes:
+            delta *= 1.4
 
         # domain conditioning via gloss
         gloss = wn.glosses.get(syn, "") or ""
@@ -355,10 +319,17 @@ def ask(q, sid):
 
     ranked.sort(reverse=True)
 
-    for delta, syn in ranked[:10]:
-        gloss = wn.glosses.get(syn)
-        if gloss:
-            print(f"{delta:+.4f} — {gloss}")
+    # ---- OUTPUT: clustered scripture instead of WordNet gloss ----
+
+    for delta, syn in ranked[:5]:
+        print(f"\n{delta:+.4f}")
+        seen = set()
+        for t in SYNSET_VERSES.get(syn, []):
+            if t not in seen:
+                print(" •", t)
+                seen.add(t)
+            if len(seen) >= 3:
+                break
 
     sess_file.write_text(json.dumps(sess, indent=2))
 
