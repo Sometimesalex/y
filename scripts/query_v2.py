@@ -55,11 +55,11 @@ print(f"Synset->words entries: {len(SYNSET_TO_WORDS)}")
 
 print("Building global sense baseline...")
 
-GLOBAL_SENSES = defaultdict(int)
+GLOBAL_SENSES = defaultdict(float)
 for wlist in VERSE_WORDS:
     for w in wlist:
         for m in wn.lookup(w):
-            GLOBAL_SENSES[m["synset"]] += 1
+            GLOBAL_SENSES[m["synset"]] += 1.0
 
 GLOBAL_TOTAL = sum(GLOBAL_SENSES.values())
 print("Global baseline built:", GLOBAL_TOTAL)
@@ -258,7 +258,7 @@ def ask(q, sid):
         return
 
     matched = []
-    LOCAL_SENSES = defaultdict(int)
+    LOCAL_SENSES = defaultdict(float)
 
     for v, wlist in zip(verses, VERSE_WORDS):
         if any(term in wlist for term in expanded_terms):
@@ -266,7 +266,13 @@ def ask(q, sid):
             for tok in wlist:
                 if tok in expanded_terms:
                     for m in wn.lookup(tok):
-                        LOCAL_SENSES[m["synset"]] += 1
+                        weight = 1.0
+
+                        # POS conditioning: bias verbs for "how"
+                        if intent == "how" and m["pos"] != "v":
+                            weight = 0.3
+
+                        LOCAL_SENSES[m["synset"]] += weight
 
     print("\nYou are being drawn toward:", intent_to_theme(intent))
 
@@ -281,10 +287,10 @@ def ask(q, sid):
     print("\n---\nContext-shifted meanings:\n")
 
     ranked = []
-    local_total = sum(LOCAL_SENSES.values()) or 1
+    local_total = sum(LOCAL_SENSES.values()) or 1.0
 
     for syn, lc in LOCAL_SENSES.items():
-        gc = GLOBAL_SENSES.get(syn, 1)
+        gc = GLOBAL_SENSES.get(syn, 1.0)
         delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
 
         if syn in wn.entailments:
