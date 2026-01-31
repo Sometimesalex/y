@@ -26,19 +26,49 @@ what do you about think is are was were the a an and or of to in on for with as 
 he she they them we us i me my your his her their our
 """.split())
 
+# ---------------- SIMPLE VERB NORMALIZATION ----------------
+# lightweight morphology for common KJV past forms
+
+VERB_NORM = {
+    "smote": "smite",
+    "dwelt": "dwell",
+    "spake": "speak",
+    "sware": "swear",
+    "slept": "sleep",
+    "ran": "run",
+    "arose": "arise",
+    "sat": "sit",
+    "begat": "beget",
+    "didst": "do",
+    "sitteth": "sit",
+}
+
+def normalize_verbs(tokens):
+    out = []
+    for t in tokens:
+        out.append(t)
+        if t in VERB_NORM:
+            out.append(VERB_NORM[t])
+    return out
+
 # ---------------- LOAD DATA ----------------
 
 print("Loading verses...")
 verses = json.loads(DATA.read_text())
 print(f"Loaded {len(verses)} verses.")
 
-print("Tokenizing verses once (cache) + archaic normalization...")
-VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
+print("Tokenizing verses once (cache) + archaic + verb normalization...")
+VERSE_WORDS = []
+for v in verses:
+    toks = words(v["text"])
+    toks = normalize_archaic(toks)
+    toks = normalize_verbs(toks)
+    VERSE_WORDS.append(toks)
 
 VOCAB = set()
 for wlist in VERSE_WORDS:
     VOCAB.update(wlist)
-print(f"Bible vocab size (with archaic bridge): {len(VOCAB)}")
+print(f"Bible vocab size (with bridges): {len(VOCAB)}")
 
 print("Loading local WordNet...")
 wn = LocalWordNet()
@@ -268,8 +298,10 @@ def ask(q, sid):
                     for m in wn.lookup(tok):
                         weight = 1.0
 
-                        # POS conditioning: bias verbs for "how"
+                        # POS conditioning
                         if intent == "how" and m["pos"] != "v":
+                            weight = 0.3
+                        if intent == "what" and m["pos"] != "n":
                             weight = 0.3
 
                         LOCAL_SENSES[m["synset"]] += weight
@@ -293,10 +325,13 @@ def ask(q, sid):
         gc = GLOBAL_SENSES.get(syn, 1.0)
         delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
 
-        if syn in wn.entailments:
-            delta *= 1.4
-        if syn in wn.causes:
-            delta *= 1.4
+        # intent-conditioned relation boosts
+        if intent == "why":
+            if syn in wn.causes or syn in wn.entailments:
+                delta *= 1.6
+        if intent == "how":
+            if syn in wn.verb_groups:
+                delta *= 1.3
 
         ranked.append((delta, syn))
 
