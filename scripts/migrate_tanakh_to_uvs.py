@@ -1,3 +1,4 @@
+cat > scripts/migrate_tanakh_to_uvs.py <<'EOF'
 #!/usr/bin/env python3
 
 import json
@@ -17,49 +18,44 @@ def main():
 
     verses = []
 
-    # Expecting structure:
-    # {
-    #   "Genesis": { "1": { "1": "...", ... }, ... },
-    #   ...
-    # }
-    # OR list of books with chapters/verses.
-    #
-    # We support both patterns.
+    for book, chapters in data.items():
+        work = slug(book)
+        work_title = book
 
-    if isinstance(data, dict):
-        books = data.items()
-    else:
-        raise RuntimeError("Unexpected tanakh.json structure (not dict at top level)")
+        for ch_key in sorted(chapters.keys(), key=lambda x: int(x)):
+            chapter = chapters[ch_key]
 
-    for book_title, chapters in books:
-        work = slug(book_title)
+            verse_num = 1
 
-        for ch_key, ch_val in chapters.items():
-            chapter = int(ch_key)
+            # alternating Hebrew / English entries
+            for i in range(0, len(chapter)-1, 2):
+                he = chapter[i].get("verse_he","").strip()
+                en = chapter[i+1].get("verse_en","").strip()
 
-            for v_key, verse_text in ch_val.items():
-                verse = int(v_key)
+                if not en and not he:
+                    continue
 
                 verses.append({
                     "corpus": "judaism_tanakh_en",
                     "tradition": "judaism",
                     "work": work,
-                    "work_title": book_title,
-                    "chapter": chapter,
-                    "verse": verse,
-                    "section": str(chapter),
-                    "subsection": str(verse),
-                    "text": verse_text.strip(),
-
-                    # analysis fields (same as others)
+                    "work_title": work_title,
+                    "chapter": int(ch_key),
+                    "verse": verse_num,
+                    "section": str(ch_key),
+                    "subsection": str(verse_num),
+                    "text": en,
+                    "text_he": he,
                     "sentiment": 0.0,
                     "dominance": 0.0,
                     "compassion": 0.0,
                     "violence": 0.0,
-                    "agency": 0.0,
+                    "agency": 0.0
                 })
 
-    verses.sort(key=lambda x: (x["work"], x["chapter"], x["verse"]))
+                verse_num += 1
+
+    verses.sort(key=lambda v: (v["work"], v["chapter"], v["verse"]))
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
@@ -69,3 +65,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+EOF
