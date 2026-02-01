@@ -2,155 +2,132 @@
 
 import json
 import sys
-import re
+import math
 from pathlib import Path
 from collections import defaultdict
 
-from prolog_reader import LocalWordNet
-from archaic_map import normalize_archaic
+from local_wordnet import LocalWordNet
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
-KJV_PATH = ROOT / "corpora/kjv/verses_enriched.json"
-QURAN_PATH = ROOT / "corpora/quran/verses_enriched.json"
-GCIDE_PATH = ROOT / "corpora/GCIDE/gcide.json"
+CORPORA = [
+    ROOT / "corpora" / "kjv" / "verses_enriched.json",
+    ROOT / "corpora" / "quran" / "verses_enriched.json",
+    ROOT / "corpora" / "tanakh" / "verses_enriched.json",
+]
 
-word_re = re.compile(r"[a-z]+")
+GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
-STOPWORDS = set("""
-what do you about think is are was were the a an and or of to in on for with as by at from
-he she they them we us i me my your his her their our should
-""".split())
-
-
-def words(t):
-    return word_re.findall(t.lower())
+TOP_N = 5
 
 
-def load_json(p):
-    if not p.exists():
-        return []
-    return json.loads(p.read_text())
+def tokenize(s):
+    return [w.lower() for w in s.replace("?", "").replace(".", "").split()]
+
+
+def cosine(a, b):
+    dot = sum(x*y for x, y in zip(a, b))
+    na = math.sqrt(sum(x*x for x in a))
+    nb = math.sqrt(sum(x*x for x in b))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
+
+
+def vectorize(tokens, vocab):
+    v = [0.0] * len(vocab)
+    idx = {w: i for i, w in enumerate(vocab)}
+    for t in tokens:
+        if t in idx:
+            v[idx[t]] += 1.0
+    return v
+
+
+def load_gcide():
+    if not GCIDE_PATH.exists():
+        return {}
+    with open(GCIDE_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question here\"")
+        print("Usage: query_v2.py \"your question\"")
         sys.exit(1)
 
-    q = " ".join(sys.argv[1:])
-    print("\nAsking:", q)
-
-    # ---------------- LOAD VERSES ----------------
+    query = sys.argv[1]
+    print("\nAsking:", query)
 
     print("Loading verses...")
-    verses = []
-    verses += load_json(KJV_PATH)
-    verses += load_json(QURAN_PATH)
-    print(f"Loaded {len(verses)} verses.")
+    all_corpora = []
+    for p in CORPORA:
+        if p.exists():
+            with open(p, encoding="utf-8") as f:
+                all_corpora.append(json.load(f))
 
-    # tokenize once
-    VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
+    total = sum(len(c) for c in all_corpora)
+    print("Loaded", total, "verses.")
 
-    VOCAB = set()
-    for w in VERSE_WORDS:
-        VOCAB.update(w)
-
-    # ---------------- GCIDE ----------------
-
-    GCIDE = {}
-    if GCIDE_PATH.exists():
-        print("Loading GCIDE...")
-        GCIDE = json.loads(GCIDE_PATH.read_text())
-        GCIDE = {k.lower(): v for k, v in GCIDE.items()}
-        print("GCIDE entries:", len(GCIDE))
-
-    # ---------------- WORDNET ----------------
+    print("Loading GCIDE...")
+    gcide = load_gcide()
+    print("GCIDE entries:", len(gcide))
 
     print("Loading WordNet...")
-    wn = LocalWordNet()   # <<< FIXED HERE
+    wn = LocalWordNet()
+    print("WordNet ready.\n")
 
-    # build synset->words
-    SYNSET_TO_WORDS = defaultdict(set)
-    for w, senses in wn.senses.items():
-        for s in senses:
-            SYNSET_TO_WORDS[s["synset"]].add(w)
+    q_tokens = tokenize(query)
 
-    # global baseline
-    GLOBAL_SENSES = defaultdict(int)
-    for wlist in VERSE_WORDS:
-        for w in wlist:
-            for m in wn.lookup(w):
-                GLOBAL_SENSES[m["synset"]] += 1
-
-    GLOBAL_TOTAL = float(sum(GLOBAL_SENSES.values()) or 1)
-
-    # ---------------- QUERY ----------------
-
-    raw_terms = [w for w in words(q) if w not in STOPWORDS]
-
-    print("\nQuery terms:", raw_terms)
-
-    # GCIDE first (modern meaning exposure)
-    for t in raw_terms:
-        if t in GCIDE:
+    # print GCIDE definitions if available
+    for t in q_tokens:
+        if t in gcide:
             print(f"\nGCIDE definition for '{t}':\n")
-            for d in GCIDE[t][:5]:
-                print(" •", d.strip())
+            for d in gcide[t][:5]:
+                print(" •", d)
+            break
 
-    # ---------------- SCORE PER CORPUS ----------------
+    print("\nQuery terms:", q_tokens)
 
-    by_corpus = defaultdict(list)
-
-    for v, wlist in zip(verses, VERSE_WORDS):
-        if not any(t in wlist for t in raw_terms):
+    # process each corpus independently
+    for corpus in all_corpora:
+        if not corpus:
             continue
 
-        LOCAL = defaultdict(int)
-        for tok in wlist:
-            if tok in raw_terms:
-                for m in wn.lookup(tok):
-                    LOCAL[m["synset"]] += 1
+        corpus_name = corpus[0].get("corpus", "unknown")
 
-        local_total = sum(LOCAL.values()) or 1.0
-
-        score = 0.0
-        for syn, lc in LOCAL.items():
-            gc = GLOBAL_SENSES.get(syn, 1)
-            score += (lc / local_total) - (gc / GLOBAL_TOTAL)
-
-        vv = dict(v)
-        vv["score"] = score
-        by_corpus[v["corpus"]].append(vv)
-
-    if not by_corpus:
-        print("\nNo corpus matches.")
-        return
-
-    # ---------------- OUTPUT (ADDITIVE) ----------------
-
-    for corpus, items in by_corpus.items():
         print("\n==============================")
-        print("Corpus:", corpus)
-        print("==============================")
+        print("Corpus:", corpus_name)
+        print("==============================\n")
 
-        ranked = sorted(items, key=lambda x: -x["score"])
+        texts = [v["text"] for v in corpus]
+        tokenized = [tokenize(t) for t in texts]
 
-        seen = set()
-        out = []
+        vocab = sorted(set(w for toks in tokenized for w in toks))
+        q_vec = vectorize(q_tokens, vocab)
 
-        for r in ranked:
-            key = (r["work"], r["chapter"], r["verse"])
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(r)
-            if len(out) >= 5:
-                break
+        scored = []
+        for verse, toks in zip(corpus, tokenized):
+            v_vec = vectorize(toks, vocab)
+            s = cosine(q_vec, v_vec)
+            if s > 0:
+                scored.append((s, verse))
 
-        for v in out:
-            print(f"\n[{v.get('work_title','')}] {v['chapter']}:{v['verse']}")
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        top = scored[:TOP_N]
+
+        if not top:
+            print("(no matches)")
+            continue
+
+        for _, v in top:
+            ref = f"[{v.get('work_title','')}] {v.get('chapter')}:{v.get('verse')}"
+            print(ref)
             print(v["text"])
+            if "text_he" in v:
+                print(v["text_he"])
+            print()
 
 
 if __name__ == "__main__":
