@@ -1,4 +1,4 @@
-cat > scripts/query_v2.py <<'EOF'
+
 #!/usr/bin/env python3
 
 import json
