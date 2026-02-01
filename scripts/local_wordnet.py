@@ -16,15 +16,6 @@ class LocalWordNet:
       - wn_ant.pl (antonyms)
       - wn_sim.pl (similar)
       - wn_der.pl (derivations)
-
-    API used by query_v2.py:
-      senses_of(word)
-      gloss_of(sid)
-      hypernyms(sid)
-      antonyms(sid)
-      similars(sid)
-      derivations(sid)
-      expand_with_hypernym_fallback(sids)
     """
 
     def __init__(self, prolog_dir):
@@ -47,14 +38,10 @@ class LocalWordNet:
 
         print("WordNet ready.\n")
 
-    # -------------------------------------------------
-
     def _open(self, name):
         path = self.root / name
         print(f"Opening: {path}")
         return open(path, "r", errors="ignore")
-
-    # -------------------------------------------------
 
     def _load_gloss(self):
         count = 0
@@ -68,8 +55,6 @@ class LocalWordNet:
                     self.gloss[sid] = m.group(2)
                     count += 1
         print(f"Loaded {count} glosses")
-
-    # -------------------------------------------------
 
     def _load_sense(self):
         count = 0
@@ -87,13 +72,11 @@ class LocalWordNet:
                     pass
         print(f"Loaded {count} senses")
 
-    # -------------------------------------------------
-
     def _load_rel(self, fname, table):
         count = 0
         with self._open(fname) as f:
             for line in f:
-                # e.g. hyp(123,456).
+                # Works for: hyp(123,456). ant(123,456). sim(123,456). der(123,456).
                 if "(" not in line:
                     continue
                 try:
@@ -105,13 +88,36 @@ class LocalWordNet:
                     pass
         print(f"Loaded {fname} relations: {count}")
 
-    # -------------------------------------------------
     # Public API
-
     def senses_of(self, word):
         return self.sense.get(word.lower(), [])
 
     def gloss_of(self, sid):
         return self.gloss.get(sid, "")
 
-    def hypernyms(sel
+    def hypernyms(self, sid):
+        return self.hyper.get(sid, set())
+
+    def antonyms(self, sid):
+        return self.ant.get(sid, set())
+
+    def similars(self, sid):
+        return self.sim.get(sid, set())
+
+    def derivations(self, sid):
+        return self.der.get(sid, set())
+
+    def expand_with_hypernym_fallback(self, sids, depth=1):
+        seen = set(sids)
+        frontier = set(sids)
+        for _ in range(depth):
+            nxt = set()
+            for sid in frontier:
+                for h in self.hyper.get(sid, set()):
+                    if h not in seen:
+                        seen.add(h)
+                        nxt.add(h)
+            frontier = nxt
+            if not frontier:
+                break
+        return list(seen)
