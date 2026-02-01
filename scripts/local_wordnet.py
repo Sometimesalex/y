@@ -24,6 +24,7 @@ class LocalWordNet:
       antonyms(sid)
       similars(sid)
       derivations(sid)
+      expand_with_hypernym_fallback(sids)
     """
 
     def __init__(self, prolog_dir):
@@ -92,11 +93,12 @@ class LocalWordNet:
         count = 0
         with self._open(fname) as f:
             for line in f:
-                # Prolog relations are bare tuples: (123,456).
-                if not line.startswith("("):
+                # e.g. hyp(123,456).
+                if "(" not in line:
                     continue
                 try:
-                    a, b = line.strip("().\n").split(",")[:2]
+                    inside = line[line.index("(")+1:line.index(")")]
+                    a, b = inside.split(",")[:2]
                     table[int(a)].add(int(b))
                     count += 1
                 except:
@@ -104,7 +106,7 @@ class LocalWordNet:
         print(f"Loaded {fname} relations: {count}")
 
     # -------------------------------------------------
-    # Public API (used by query_v2.py)
+    # Public API
 
     def senses_of(self, word):
         return self.sense.get(word.lower(), [])
@@ -112,39 +114,4 @@ class LocalWordNet:
     def gloss_of(self, sid):
         return self.gloss.get(sid, "")
 
-    def hypernyms(self, sid):
-        return self.hyper.get(sid, set())
-
-    def antonyms(self, sid):
-        return self.ant.get(sid, set())
-
-    def similars(self, sid):
-        return self.sim.get(sid, set())
-
-    def derivations(self, sid):
-        return self.der.get(sid, set())
-
-    # -------------------------------------------------
-    # Hypernym fallback helper (what you added last)
-
-    def expand_with_hypernym_fallback(self, sids, depth=1):
-        """
-        Given starting synsets, walk hypernyms upward if empty.
-        Used by query_v2.py when direct matches fail.
-        """
-        seen = set(sids)
-        frontier = set(sids)
-
-        for _ in range(depth):
-            next_frontier = set()
-            for sid in frontier:
-                hs = self.hyper.get(sid, set())
-                for h in hs:
-                    if h not in seen:
-                        seen.add(h)
-                        next_frontier.add(h)
-            frontier = next_frontier
-            if not frontier:
-                break
-
-        return list(seen)
+    def hypernyms(sel
