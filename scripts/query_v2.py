@@ -8,7 +8,6 @@ from collections import defaultdict
 
 from prolog_reader import LocalWordNet
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 CORPORA = [
@@ -18,104 +17,96 @@ CORPORA = [
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
 ]
 
-TOP_N = 5
-
-
 STOPWORDS = {
-    "the","a","an","and","or","of","to","in","on","at","for","with",
-    "is","are","was","were","be","been","being",
-    "i","you","he","she","it","we","they","me","him","her","them",
-    "my","your","his","their","our",
-    "what","when","where","why","how",
-    "this","that","these","those",
-    "do","does","did",
-    "will","shall","would","could"
+    "the","a","an","and","or","of","to","in","on","for","with","is","are","was",
+    "were","be","been","being","that","this","these","those","i","you","he","she",
+    "it","we","they","how","when","what","why","who","whom","which","will","shall",
+    "would","should","could","do","does","did"
 }
 
+TOP_N = 5
 
 def tokenize(s):
-    return re.findall(r"[a-zA-Z']+", s.lower())
-
+    words = re.findall(r"[a-zA-Z']+", s.lower())
+    return [w for w in words if w not in STOPWORDS]
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: query_v2.py \"your question\"")
-        sys.exit(1)
+        return
 
-    query = sys.argv[1]
-    print("\nAsking:", query)
+    question = sys.argv[1]
+    print("\nAsking:", question)
 
-    raw = tokenize(query)
-    query_terms = [t for t in raw if t not in STOPWORDS]
-
+    query_terms = tokenize(question)
     print("\nQuery terms:", query_terms)
 
-    # ---- WordNet ----
+    # Load WordNet (best effort)
     wn = None
     try:
         wn = LocalWordNet()
-        wn.load_minimal()
-        print("WordNet ready.")
     except Exception as e:
-        print("WordNet skipped (non-fatal):", e)
+        print("WordNet skipped:", e)
 
-    expanded = set()
+    expanded = set(query_terms)
     boost = set()
 
-    for t in query_terms:
-        # hard boost Jesus
-        if t == "jesus":
-            boost.add(t)
-            expanded.add(t)
-            continue
+    qt = set(query_terms)
 
-        expanded.add(t)
+    # Jesus arrival soft-expansion (BOOST ONLY)
+    if "jesus" in qt and ("arrive" in qt or "return" in qt or "come" in qt):
+        boost |= {"jesus","return","descend","appear","second"}
 
-        if wn:
+    # Normal WordNet expansion (soft)
+    if wn:
+        for t in query_terms:
             try:
                 expanded |= set(wn.get_lemmas(t))
                 expanded |= set(wn.get_hypernyms(t))
             except:
                 pass
 
+    expanded |= boost
+
     print("\nExpanded terms:", sorted(expanded))
 
-    # ---- Load verses ----
     verses = []
 
     for path in CORPORA:
         if not path.exists():
             continue
-        with open(path, encoding="utf-8") as f:
+        with open(path) as f:
             verses += json.load(f)
 
     print("Loaded", len(verses), "verses.")
 
-    by_corpus = defaultdict(list)
+    scored = defaultdict(list)
 
     for v in verses:
-        text = v.get("text","").lower()
+        text = v["text"].lower()
 
-        # must contain boosted term if present
-        if boost:
-            if not any(b in text for b in boost):
-                continue
+        score = 0.0
 
         for t in expanded:
             if t in text:
-                by_corpus[v["corpus"]].append(v)
-                break
+                score += 1.0
+                if t in boost:
+                    score += 2.0
 
-    # ---- Output ----
-    for corpus, hits in by_corpus.items():
+        if score > 0:
+            scored[v["corpus"]].append((score, v))
+
+    for corpus, items in scored.items():
+        items.sort(key=lambda x: -x[0])
+
         print("\n==============================")
         print("Corpus:", corpus)
         print("==============================\n")
 
-        for v in hits[:TOP_N]:
-            ref = f'[{v.get("work_title","")}] {v.get("chapter")}:{v.get("verse")}'
+        for score, v in items[:TOP_N]:
+            ref = f"[{v.get('work_title','')}] {v.get('chapter','')}:{v.get('verse','')}"
             print(ref)
-            print(v["text"].strip())
+            print(v["text"])
             print()
 
 if __name__ == "__main__":
