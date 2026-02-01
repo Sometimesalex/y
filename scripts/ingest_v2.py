@@ -1,122 +1,103 @@
-#!/usr/bin/env python3
-
 import json
-import sys
 import re
 from pathlib import Path
-from collections import defaultdict
 
-from prolog_reader import LocalWordNet
+BASE = Path("corpora")
+OUTPUT = Path("output")
+OUTPUT.mkdir(exist_ok=True)
 
+cv_inline = re.compile(r"^(\d+):(\d+)\s+(.*)")
+cv_only = re.compile(r"^(\d+):(\d+)$")
+v_only = re.compile(r"^(\d+)\s+(.*)")
+chap = re.compile(r"^CHAPTER\s+(\d+)", re.I)
 
-ROOT = Path(__file__).resolve().parents[1]
+global_index = {}
 
-CORPORA = [
-    ROOT / "corpora" / "kjv" / "verses_enriched.json",
-    ROOT / "corpora" / "quran" / "verses_enriched.json",
-    ROOT / "corpora" / "tanakh" / "verses_enriched.json",
-    ROOT / "corpora" / "buddhism" / "verses_enriched.json",
-]
+for corpus_dir in BASE.iterdir():
+    if not corpus_dir.is_dir():
+        continue
 
-TOP_N = 5
+    corpus = corpus_dir.name
+    raw = corpus_dir / "raw.txt"
+    if not raw.exists():
+        continue
 
+    lines = raw.read_text(errors="ignore").splitlines()
 
-STOPWORDS = {
-    "the","a","an","and","or","of","to","in","on","at","for","with",
-    "is","are","was","were","be","been","being",
-    "i","you","he","she","it","we","they","me","him","her","them",
-    "my","your","his","their","our",
-    "what","when","where","why","how",
-    "this","that","these","those",
-    "do","does","did",
-    "will","shall","would","could"
-}
-
-
-def tokenize(s):
-    return re.findall(r"[a-zA-Z']+", s.lower())
-
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question\"")
-        sys.exit(1)
-
-    query = sys.argv[1]
-    print("\nAsking:", query)
-
-    raw = tokenize(query)
-    query_terms = [t for t in raw if t not in STOPWORDS]
-
-    print("\nQuery terms:", query_terms)
-
-    # ---- WordNet ----
-    wn = None
-    try:
-        wn = LocalWordNet()
-        wn.load_minimal()
-        print("WordNet ready.")
-    except Exception as e:
-        print("WordNet skipped (non-fatal):", e)
-
-    expanded = set()
-    boost = set()
-
-    for t in query_terms:
-        # hard boost Jesus
-        if t == "jesus":
-            boost.add(t)
-            expanded.add(t)
-            continue
-
-        expanded.add(t)
-
-        if wn:
-            try:
-                expanded |= set(wn.get_lemmas(t))
-                expanded |= set(wn.get_hypernyms(t))
-            except:
-                pass
-
-    print("\nExpanded terms:", sorted(expanded))
-
-    # ---- Load verses ----
     verses = []
+    current_book = "Unknown"
+    current_chapter = None
+    current = None
+    pending = None
 
-    for path in CORPORA:
-        if not path.exists():
+    for line in lines:
+        line = line.strip()
+        if not line:
             continue
-        with open(path, encoding="utf-8") as f:
-            verses += json.load(f)
 
-    print("Loaded", len(verses), "verses.")
+        if line.isupper() and len(line) < 120 and ":" not in line:
+            current_book = line.title()
+            continue
 
-    by_corpus = defaultdict(list)
+        m = chap.match(line)
+        if m:
+            current_chapter = int(m.group(1))
+            continue
 
-    for v in verses:
-        text = v.get("text","").lower()
+        m = cv_inline.match(line)
+        if m:
+            if current:
+                verses.append(current)
+            current_chapter = int(m.group(1))
+            current = {
+                "corpus": corpus,
+                "book": current_book,
+                "chapter": current_chapter,
+                "verse": int(m.group(2)),
+                "text": m.group(3)
+            }
+            continue
 
-        # must contain boosted term if present
-        if boost:
-            if not any(b in text for b in boost):
-                continue
+        m = cv_only.match(line)
+        if m:
+            if current:
+                verses.append(current)
+            current_chapter = int(m.group(1))
+            pending = {
+                "corpus": corpus,
+                "book": current_book,
+                "chapter": current_chapter,
+                "verse": int(m.group(2)),
+                "text": ""
+            }
+            current = pending
+            continue
 
-        for t in expanded:
-            if t in text:
-                by_corpus[v["corpus"]].append(v)
-                break
+        m = v_only.match(line)
+        if m and current_chapter is not None:
+            if current:
+                verses.append(current)
+            current = {
+                "corpus": corpus,
+                "book": current_book,
+                "chapter": current_chapter,
+                "verse": int(m.group(1)),
+                "text": m.group(2)
+            }
+            continue
 
-    # ---- Output ----
-    for corpus, hits in by_corpus.items():
-        print("\n==============================")
-        print("Corpus:", corpus)
-        print("==============================\n")
+        if current:
+            if current["text"]:
+                current["text"] += " " + line
+            else:
+                current["text"] = line
 
-        for v in hits[:TOP_N]:
-            ref = f'[{v.get("work_title","")}] {v.get("chapter")}:{v.get("verse")}'
-            print(ref)
-            print(v["text"].strip())
-            print()
+    if current:
+        verses.append(current)
 
-if __name__ == "__main__":
-    main()
+    (corpus_dir / "verses.json").write_text(json.dumps(verses, indent=2))
+    global_index[corpus] = len(verses)
+
+(Path("output") / "index.json").write_text(json.dumps(global_index, indent=2))
+
+print(global_index)
