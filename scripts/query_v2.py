@@ -2,13 +2,11 @@
 
 import json
 import sys
-import math
 import re
 from pathlib import Path
 from collections import defaultdict
 
 from prolog_reader import LocalWordNet
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,142 +19,104 @@ CORPORA = [
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
-
-TOKEN_RE = re.compile(r"[a-zA-Z']+")
-
-
-def tokenize(text):
-    return [t.lower() for t in TOKEN_RE.findall(text)]
-
+STOPWORDS = {
+    "a","an","the","and","or","but","if","then","else",
+    "is","are","was","were","be","been","being",
+    "i","me","my","mine","you","your","yours","he","she","it","we","they",
+    "this","that","these","those",
+    "what","which","who","whom","whose","when","where","why","how",
+    "should","would","could","can","may","might","must","shall",
+    "do","does","did",
+    "to","of","in","on","at","by","for","with","about","from","into","over","under",
+}
 
 def load_gcide():
     if not GCIDE_PATH.exists():
         return {}
-
     with open(GCIDE_PATH, encoding="utf-8") as f:
         data = json.load(f)
+    print("GCIDE entries:", len(data))
+    return data
 
-    out = {}
-    for k, v in data.items():
-        if isinstance(v, list):
-            out[k.lower()] = v
-    print("GCIDE entries:", len(out))
-    return out
+def tokenize(question):
+    raw = [
+        t.lower()
+        for t in re.findall(r"[a-zA-Z']+", question)
+    ]
 
+    filtered = [
+        t for t in raw
+        if t not in STOPWORDS and len(t) > 1
+    ]
 
-def load_corpora():
-    all_rows = []
+    if not filtered:
+        filtered = raw
 
-    for path in CORPORA:
-        if not path.exists():
+    return filtered
+
+def load_all_verses():
+    allv = []
+    for p in CORPORA:
+        if not p.exists():
             continue
+        with open(p, encoding="utf-8") as f:
+            allv.extend(json.load(f))
+    return allv
 
-        with open(path, encoding="utf-8") as f:
-            rows = json.load(f)
-
-        all_rows.extend(rows)
-
-    print("Loaded", len(all_rows), "verses.")
-    return all_rows
-
-
-def build_index(rows):
-    tf = []
-    df = defaultdict(int)
-
-    for r in rows:
-        toks = tokenize(r.get("text", ""))
-        counts = defaultdict(int)
-        for t in toks:
-            counts[t] += 1
-        tf.append(counts)
-        for t in counts:
-            df[t] += 1
-
-    return tf, df
-
-
-def score_query(qtokens, rows, tf, df):
-    N = len(rows)
-    scores = []
-
-    for i, r in enumerate(rows):
-        s = 0.0
-        for t in qtokens:
-            if t in tf[i]:
-                idf = math.log((N + 1) / (df[t] + 1))
-                s += tf[i][t] * idf
-        scores.append(s)
-
-    return scores
-
+def score(text, terms):
+    t = text.lower()
+    return sum(t.count(w) for w in terms)
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question\"")
-        sys.exit(1)
+        print("Usage: query_v2.py \"question\"")
+        return
 
-    query = sys.argv[1].strip().lower()
-    print("\nAsking:", query)
+    question = sys.argv[1]
+    print("\nAsking:", question)
 
-    qtokens = tokenize(query)
-    if not qtokens:
-        print("No usable tokens.")
-        sys.exit(0)
+    query_terms = tokenize(question)
+    print("\nQuery terms:", query_terms)
 
-    print("\nQuery terms:", qtokens)
-
-    # GCIDE
     gcide = load_gcide()
-    for t in qtokens:
-        if t in gcide:
-            print(f"\n---\nGCIDE definition for '{t}':\n")
-            for d in gcide[t]:
+
+    for term in query_terms:
+        if term in gcide:
+            print(f"\n---\nGCIDE definition for '{term}':\n")
+            for d in gcide[term]:
                 print(" •", d)
 
-    # WordNet (loaded for future expansion)
+    print("\nLoading WordNet...")
     try:
-        print("\nLoading WordNet...")
-        wn = LocalWordNet()
-        wn.load_all(ROOT / "prolog")
+        wn = LocalWordNet(ROOT / "prolog")
         print("WordNet ready.\n")
     except Exception as e:
-        print("\nWordNet skipped (non-fatal):", e, "\n")
+        print("WordNet skipped (non-fatal):", e)
 
-    # Load corpora
-    rows = load_corpora()
+    verses = load_all_verses()
+    print("Loaded", len(verses), "verses.")
 
-    tf, df = build_index(rows)
-    scores = score_query(qtokens, rows, tf, df)
-
-    # Group by corpus
     grouped = defaultdict(list)
-    for r, s in zip(rows, scores):
-        if s > 0:
-            grouped[r["corpus"]].append((s, r))
 
-    TOP_N = 5
+    for v in verses:
+        s = score(v.get("text",""), query_terms)
+        if s:
+            grouped[v["corpus"]].append((s, v))
 
-    for corpus in sorted(grouped.keys()):
+    for corpus, items in grouped.items():
         print("\n==============================")
         print("Corpus:", corpus)
         print("==============================\n")
 
-        hits = sorted(grouped[corpus], key=lambda x: x[0], reverse=True)[:TOP_N]
+        items.sort(key=lambda x: -x[0])
 
-        for score, r in hits:
-            ref = f"[{r.get('work_title','')}] {r.get('chapter')}:{r.get('verse')}"
+        for _, v in items[:5]:
+            ref = f'[{v["work_title"]}] {v["chapter"]}:{v["verse"]}'
             print(ref)
-            print(r.get("text", ""))
-
-            if "text_he" in r:
-                print(r["text_he"])
-
-            print("")
-
-    if not grouped:
-        print("\nNo matches found.")
-
+            print(v["text"])
+            if "text_he" in v:
+                print(v["text_he"])
+            print()
 
 if __name__ == "__main__":
     main()
