@@ -2,9 +2,13 @@
 
 import json
 import sys
+import math
 import re
 from pathlib import Path
 from collections import defaultdict
+
+from prolog_reader import LocalWordNet
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,18 +21,74 @@ CORPORA = [
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
-WORD_RE = re.compile(r"[a-zA-Z']+")
+
+TOKEN_RE = re.compile(r"[a-zA-Z']+")
 
 
 def tokenize(text):
-    return WORD_RE.findall(text.lower())
+    return [t.lower() for t in TOKEN_RE.findall(text)]
 
 
 def load_gcide():
     if not GCIDE_PATH.exists():
         return {}
+
     with open(GCIDE_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+
+    out = {}
+    for k, v in data.items():
+        if isinstance(v, list):
+            out[k.lower()] = v
+    print("GCIDE entries:", len(out))
+    return out
+
+
+def load_corpora():
+    all_rows = []
+
+    for path in CORPORA:
+        if not path.exists():
+            continue
+
+        with open(path, encoding="utf-8") as f:
+            rows = json.load(f)
+
+        all_rows.extend(rows)
+
+    print("Loaded", len(all_rows), "verses.")
+    return all_rows
+
+
+def build_index(rows):
+    tf = []
+    df = defaultdict(int)
+
+    for r in rows:
+        toks = tokenize(r.get("text", ""))
+        counts = defaultdict(int)
+        for t in toks:
+            counts[t] += 1
+        tf.append(counts)
+        for t in counts:
+            df[t] += 1
+
+    return tf, df
+
+
+def score_query(qtokens, rows, tf, df):
+    N = len(rows)
+    scores = []
+
+    for i, r in enumerate(rows):
+        s = 0.0
+        for t in qtokens:
+            if t in tf[i]:
+                idf = math.log((N + 1) / (df[t] + 1))
+                s += tf[i][t] * idf
+        scores.append(s)
+
+    return scores
 
 
 def main():
@@ -36,79 +96,66 @@ def main():
         print("Usage: query_v2.py \"your question\"")
         sys.exit(1)
 
-    query = sys.argv[1].lower()
-    query_terms = tokenize(query)
+    query = sys.argv[1].strip().lower()
+    print("\nAsking:", query)
 
-    # remove junk
-    stop = {"the", "a", "an", "and", "or", "to", "of", "i", "you", "how", "should"}
-    query_terms = [t for t in query_terms if t not in stop]
-
-    if not query_terms:
-        print("No usable query terms.")
+    qtokens = tokenize(query)
+    if not qtokens:
+        print("No usable tokens.")
         sys.exit(0)
 
-    print("\nAsking:", query)
-    print("\nQuery terms:", query_terms)
+    print("\nQuery terms:", qtokens)
 
     # GCIDE
     gcide = load_gcide()
-    for t in query_terms:
+    for t in qtokens:
         if t in gcide:
             print(f"\n---\nGCIDE definition for '{t}':\n")
-            for d in gcide[t][:8]:
+            for d in gcide[t]:
                 print(" •", d)
 
-    # Load verses
-    all_verses = []
-    for path in CORPORA:
-        if path.exists():
-            with open(path, encoding="utf-8") as f:
-                all_verses.extend(json.load(f))
+    # WordNet (loaded for future expansion)
+    try:
+        print("\nLoading WordNet...")
+        wn = LocalWordNet()
+        wn.load_all(ROOT / "prolog")
+        print("WordNet ready.\n")
+    except Exception as e:
+        print("\nWordNet skipped (non-fatal):", e, "\n")
 
-    print("\nLoading verses...")
-    print("Loaded", len(all_verses), "verses.")
+    # Load corpora
+    rows = load_corpora()
+
+    tf, df = build_index(rows)
+    scores = score_query(qtokens, rows, tf, df)
 
     # Group by corpus
-    by_corpus = defaultdict(list)
-    for v in all_verses:
-        by_corpus[v["corpus"]].append(v)
+    grouped = defaultdict(list)
+    for r, s in zip(rows, scores):
+        if s > 0:
+            grouped[r["corpus"]].append((s, r))
 
-    # Score per corpus
-    for corpus, verses in by_corpus.items():
-        scored = []
+    TOP_N = 5
 
-        for v in verses:
-            text = v.get("text", "").lower()
-            score = 0
-            for t in query_terms:
-                score += text.count(t)
-
-            if score > 0:
-                scored.append((score, v))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-
+    for corpus in sorted(grouped.keys()):
         print("\n==============================")
         print("Corpus:", corpus)
         print("==============================\n")
 
-        if not scored:
-            print("(no matches)")
-            continue
+        hits = sorted(grouped[corpus], key=lambda x: x[0], reverse=True)[:TOP_N]
 
-        for _, v in scored[:5]:
-            book = v.get("work_title", "")
-            ch = v.get("chapter", "")
-            ve = v.get("verse", "")
-            txt = v.get("text", "").strip()
+        for score, r in hits:
+            ref = f"[{r.get('work_title','')}] {r.get('chapter')}:{r.get('verse')}"
+            print(ref)
+            print(r.get("text", ""))
 
-            print(f"[{book}] {ch}:{ve}")
-            print(txt)
+            if "text_he" in r:
+                print(r["text_he"])
 
-            if "text_he" in v:
-                print(v["text_he"])
+            print("")
 
-            print()
+    if not grouped:
+        print("\nNo matches found.")
 
 
 if __name__ == "__main__":
