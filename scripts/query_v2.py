@@ -1,219 +1,111 @@
-import json
+#!/usr/bin/env python3
+
 import sys
-import re
+import json
+import math
+from collections import defaultdict, Counter
 from pathlib import Path
-from collections import defaultdict
 
 from prolog_reader import LocalWordNet
-from archaic_map import normalize_archaic
 
-DATA = Path("corpora/kjv/verses_enriched.json")
-GCIDE_PATH = Path("corpora/GCIDE/gcide.json")
 
-SHOW_REFS = "--refs" in sys.argv
+ROOT = Path(__file__).resolve().parents[1]
 
-word_re = re.compile(r"[a-z]+")
+KJV_PATH = ROOT / "corpora/kjv/verses_enriched.json"
+QURAN_PATH = ROOT / "corpora/quran/verses_enriched.json"
+GCIDE_PATH = ROOT / "corpora/GCIDE/gcide.json"
 
-def words(t):
-    return word_re.findall(t.lower())
 
-STOPWORDS = set("""
-what do you about think is are was were the a an and or of to in on for with as by at from
-he she they them we us i me my your his her their our should
-""".split())
+def tokenize(text):
+    return [t.lower() for t in text.replace("?", " ").replace(".", " ").split()]
 
-print("Loading verses...")
-verses = json.loads(DATA.read_text())
-print(f"Loaded {len(verses)} verses.")
 
-print("Tokenizing verses once (cache) + archaic + verb normalization...")
-VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
+def load_uvs(path):
+    with open(path) as f:
+        return json.load(f)
 
-VOCAB = set()
-for wlist in VERSE_WORDS:
-    VOCAB.update(wlist)
-print(f"Bible vocab size (with bridges): {len(VOCAB)}")
 
-GCIDE = {}
-if GCIDE_PATH.exists():
+def load_gcide():
+    if not GCIDE_PATH.exists():
+        return {}
+    with open(GCIDE_PATH) as f:
+        return json.load(f)
+
+
+def cosine(a, b):
+    dot = sum(a[k] * b.get(k, 0) for k in a)
+    na = math.sqrt(sum(v * v for v in a.values()))
+    nb = math.sqrt(sum(v * v for v in b.values()))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
+
+
+def vec(tokens):
+    return Counter(tokens)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: query_v2.py \"your question\"")
+        return
+
+    query = sys.argv[1]
+    print("\nAsking:", query)
+
+    print("Loading verses...")
+    verses = []
+    verses += load_uvs(KJV_PATH)
+    verses += load_uvs(QURAN_PATH)
+    print("Loaded", len(verses), "verses.")
+
     print("Loading GCIDE...")
-    GCIDE = json.loads(GCIDE_PATH.read_text())
-    GCIDE = {k.lower(): v for k, v in GCIDE.items()}
-    print(f"GCIDE entries: {len(GCIDE)}")
+    gcide = load_gcide()
+    print("GCIDE entries:", len(gcide))
 
-print("Loading local WordNet...")
-wn = LocalWordNet()
+    print("Loading WordNet...")
+    wn = LocalWordNet(ROOT / "prolog")
+    wn.load_all()
+    print("WordNet ready.\n")
 
-print("Building synset->words map...")
-SYNSET_TO_WORDS = defaultdict(set)
-for w, senses in wn.senses.items():
-    for s in senses:
-        SYNSET_TO_WORDS[s["synset"]].add(w)
-print(f"Synset->words entries: {len(SYNSET_TO_WORDS)}")
+    q_tokens = tokenize(query)
+    q_vec = vec(q_tokens)
 
-print("Building global sense baseline...")
-GLOBAL_SENSES = defaultdict(int)
-for wlist in VERSE_WORDS:
-    for w in wlist:
-        for m in wn.lookup(w):
-            GLOBAL_SENSES[m["synset"]] += 1
-
-GLOBAL_TOTAL = float(sum(GLOBAL_SENSES.values()) or 1.0)
-print("Global baseline built:", GLOBAL_TOTAL)
-
-def detect_intent(q):
-    q = q.lower().strip()
-    for i in ["how", "why", "what", "when", "where", "who", "which"]:
-        if q.startswith(i):
-            return i
-    return "why"
-
-def intent_to_theme(intent):
-    return {
-        "why": "purpose",
-        "how": "process",
-        "what": "define",
-        "when": "time",
-        "where": "place",
-        "who": "agent",
-    }.get(intent, "purpose")
-
-def show(v):
-    if SHOW_REFS:
-        work = v.get("work_title", "")
-        sec = v.get("section", "")
-        sub = v.get("subsection", "")
-        print(f"{work} {sec}:{sub} —", end=" ")
-    print(v["text"])
-
-def normalize_term(term):
-    t = term.lower()
-    cands = [t]
-
-    if len(t) > 3 and t.endswith("ies"):
-        cands.append(t[:-3] + "y")
-    if len(t) > 3 and t.endswith("es"):
-        cands.append(t[:-2])
-    if len(t) > 3 and t.endswith("s"):
-        cands.append(t[:-1])
-
-    out = []
-    seen = set()
-    for x in cands:
-        if x not in seen:
-            seen.add(x)
-            out.append(x)
-    return out
-
-def gcide_lookup(term):
-    for form in normalize_term(term):
-        if form in GCIDE:
-            return GCIDE[form]
-    return None
-
-def ask(q):
-    intent = detect_intent(q)
-    raw_terms = [w for w in words(q) if w not in STOPWORDS]
-
-    print("\nQuery terms:", raw_terms if raw_terms else "(none)")
-
-    gcide_hits = {}
-    for t in raw_terms:
-        defs = gcide_lookup(t)
-        if defs:
-            gcide_hits[t] = defs
-
-    if gcide_hits:
-        for t, defs in gcide_hits.items():
-            print(f"\nGCIDE definition for '{t}':\n")
-            for d in defs[:5]:
-                print(" •", d.strip())
-
-        if all(t not in VOCAB for t in raw_terms):
-            return
-
-    expanded = set()
-
-    for t in raw_terms:
-        if t in VOCAB:
-            expanded.add(t)
-            continue
-
-        senses = []
-        for form in normalize_term(t):
-            senses = wn.lookup(form)
-            if senses:
-                break
-
-        for m in senses:
-            for w in SYNSET_TO_WORDS.get(m["synset"], []):
-                if w in VOCAB:
-                    expanded.add(w)
-
-    matched = []
-    LOCAL_SENSES = defaultdict(int)
-
-    for v, wlist in zip(verses, VERSE_WORDS):
-        if any(term in wlist for term in expanded):
-            matched.append(v)
-            for tok in wlist:
-                if tok in expanded:
-                    for m in wn.lookup(tok):
-                        LOCAL_SENSES[m["synset"]] += 1
-
-    print("\nYou are being drawn toward:", intent_to_theme(intent))
-
-    for v in matched[:5]:
+    # GCIDE fallback for single-term queries
+    if len(q_tokens) == 1 and q_tokens[0] in gcide:
+        print(f"\nGCIDE definition for '{q_tokens[0]}':\n")
+        for d in gcide[q_tokens[0]][:5]:
+            print(" •", d)
         print()
-        show(v)
 
-    print("\n---\nContext-shifted meanings (Bible-derived clusters):\n")
+    scored = []
 
-    ranked = []
-    local_total = sum(LOCAL_SENSES.values()) or 1.0
+    for v in verses:
+        t = tokenize(v["text"])
+        s = cosine(q_vec, vec(t))
+        if s > 0:
+            scored.append((s, v))
 
-    for syn, lc in LOCAL_SENSES.items():
-        gc = GLOBAL_SENSES.get(syn, 1)
-        delta = (lc / local_total) - (gc / GLOBAL_TOTAL)
-        ranked.append((delta, syn))
+    scored.sort(key=lambda x: -x[0])
 
-    ranked.sort(reverse=True)
+    by_corpus = defaultdict(list)
+    for score, verse in scored:
+        verse = dict(verse)
+        verse["score"] = score
+        by_corpus[verse["corpus"]].append(verse)
 
-    last_delta = None
-    shown = 0
-    seen_clusters = set()
+    for corpus in sorted(by_corpus.keys()):
+        print("\n==============================")
+        print(corpus)
+        print("==============================\n")
 
-    for delta, syn in ranked:
-        if last_delta is not None and abs(delta - last_delta) < 0.01:
-            continue
+        top = by_corpus[corpus][:5]
 
-        verses_here = []
-        for v, wlist in zip(verses, VERSE_WORDS):
-            if any(w in wlist for w in SYNSET_TO_WORDS.get(syn, [])):
-                verses_here.append(v["text"])
-            if len(verses_here) >= 3:
-                break
+        for i, v in enumerate(top, 1):
+            print(f"{i}. [{v['work_title']} {v['chapter']}:{v['verse']}]")
+            print(v["text"])
+            print(f"(score {v['score']:.4f})\n")
 
-        sig = tuple(verses_here)
-        if sig in seen_clusters:
-            continue
-        seen_clusters.add(sig)
-
-        print(f"\n{delta:+.4f}")
-        for t in verses_here:
-            print(" •", t)
-
-        last_delta = delta
-        shown += 1
-
-        if shown >= 5:
-            break
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question here\"")
-        sys.exit()
-
-    q = " ".join(x for x in sys.argv[1:] if x != "--refs")
-    print(f"\nAsking: {q}")
-    ask(q)
+    main()
