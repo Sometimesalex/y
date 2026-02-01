@@ -184,7 +184,7 @@ def expand_query_terms(raw_terms):
 
         noun_senses = [m for m in senses if m.get("pos") == "n"]
 
-        # Upgrade 2: modern terms behave like nouns
+        # Modern terms behave like nouns
         if noun_senses or t not in VOCAB:
             seed = noun_senses if noun_senses else senses
             hops = 2
@@ -202,7 +202,7 @@ def expand_query_terms(raw_terms):
         for syn in all_synsets:
             for w in SYNSET_TO_WORDS.get(syn, []):
                 if w in VOCAB and w not in STOPWORDS:
-                    # Upgrade 1: ontology ceiling
+                    # Ontology ceiling
                     if t not in HUMAN_TERMS and w in HUMAN_TERMS:
                         continue
                     candidates.append(w)
@@ -293,7 +293,10 @@ def ask(q, sid):
 
     ranked.sort(reverse=True)
 
-    for delta, syn in ranked[:5]:
+    # De-duplicate by verse clusters
+    seen_clusters = set()
+
+    for delta, syn in ranked:
         verses_here = []
         for v, wlist in zip(verses, VERSE_WORDS):
             if any(w in wlist for w in SYNSET_TO_WORDS.get(syn, [])):
@@ -301,9 +304,17 @@ def ask(q, sid):
             if len(verses_here) >= 3:
                 break
 
+        cluster_key = tuple(verses_here)
+        if cluster_key in seen_clusters:
+            continue
+        seen_clusters.add(cluster_key)
+
         print(f"\n{delta:+.4f}")
         for t in verses_here:
             print(" •", t)
+
+        if len(seen_clusters) >= 5:
+            break
 
 # ---------------- ENTRY ----------------
 
