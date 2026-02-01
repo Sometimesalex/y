@@ -29,8 +29,8 @@ GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
 STOPWORDS = {
     "the","a","an","and","or","of","to","is","are","was","were","be","been",
-    "i","you","he","she","it","we","they","what","how","when","where","why",
-    "should","would","could","am"
+    "you","he","she","it","we","they","what","how","when","where","why",
+    "should","would","could"
 }
 
 TOP_N = 5
@@ -92,7 +92,7 @@ def main():
 
     query_terms = tokenize(query)
 
-    # Fallback if stopwords removed everything
+    # Fallback so existential queries never go empty
     if not query_terms:
         query_terms = [w.lower() for w in query.split() if len(w) > 2]
 
@@ -104,25 +104,22 @@ def main():
 
     expanded = set(query_terms)
 
-    # WordNet expansion
+    # WordNet expansion: senses -> hypernyms -> gloss tokens
     if LocalWordNet:
         try:
             wn = LocalWordNet(str(ROOT / "prolog"))
-            wn_synsets = set()
+            syns = set()
 
             for t in query_terms:
-                sids = wn.senses_of(t)
-                wn_synsets |= set(wn.expand_with_hypernym_fallback(sids, depth=1))
+                syns |= set(wn.expand_with_hypernym_fallback(wn.senses_of(t), depth=1))
 
-            # Convert synsets back into gloss tokens
-            for sid in wn_synsets:
+            for sid in syns:
                 g = wn.gloss_of(sid)
                 for tok in g.lower().split():
                     if tok not in STOPWORDS and len(tok) > 2:
                         expanded.add(tok)
 
             print("\nExpanded terms:", sorted(expanded))
-
         except Exception as e:
             print("\nWordNet skipped (non-fatal):", e)
 
@@ -131,7 +128,6 @@ def main():
     print("Searching with terms:", terms)
 
     all_docs = []
-
     for cpath in CORPORA:
         if not cpath.exists():
             continue
@@ -155,14 +151,11 @@ def main():
 
     scored = defaultdict(list)
 
+    # Always score every verse; ranking decides relevance
     for (cname, v), toks in zip(all_docs, doc_tokens):
         dv = vectorize(toks, vocab)
         s = cosine(qv, dv)
-
-        literal = any(t in normalize(v.get("text","")) for t in terms)
-
-        if s > 0 or literal:
-            scored[cname].append((s, v))
+        scored[cname].append((s, v))
 
     for cname in scored:
         scored[cname].sort(key=lambda x: x[0], reverse=True)
