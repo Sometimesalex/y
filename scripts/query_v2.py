@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-import sys
 import json
-import math
-from collections import defaultdict, Counter
+import sys
+import re
 from pathlib import Path
+from collections import defaultdict
 
 from prolog_reader import LocalWordNet
-
+from archaic_map import normalize_archaic
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,96 +15,142 @@ KJV_PATH = ROOT / "corpora/kjv/verses_enriched.json"
 QURAN_PATH = ROOT / "corpora/quran/verses_enriched.json"
 GCIDE_PATH = ROOT / "corpora/GCIDE/gcide.json"
 
+word_re = re.compile(r"[a-z]+")
 
-def tokenize(text):
-    return [t.lower() for t in text.replace("?", " ").replace(".", " ").split()]
-
-
-def load_uvs(path):
-    with open(path) as f:
-        return json.load(f)
+STOPWORDS = set("""
+what do you about think is are was were the a an and or of to in on for with as by at from
+he she they them we us i me my your his her their our should
+""".split())
 
 
-def load_gcide():
-    if not GCIDE_PATH.exists():
-        return {}
-    with open(GCIDE_PATH) as f:
-        return json.load(f)
+def words(t):
+    return word_re.findall(t.lower())
 
 
-def cosine(a, b):
-    dot = sum(a[k] * b.get(k, 0) for k in a)
-    na = math.sqrt(sum(v * v for v in a.values()))
-    nb = math.sqrt(sum(v * v for v in b.values()))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
-
-
-def vec(tokens):
-    return Counter(tokens)
+def load_json(p):
+    if not p.exists():
+        return []
+    return json.loads(p.read_text())
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question\"")
-        return
+        print("Usage: query_v2.py \"your question here\"")
+        sys.exit(1)
 
-    query = sys.argv[1]
-    print("\nAsking:", query)
+    q = " ".join(sys.argv[1:])
+    print("\nAsking:", q)
+
+    # ---------------- LOAD VERSES ----------------
 
     print("Loading verses...")
     verses = []
-    verses += load_uvs(KJV_PATH)
-    verses += load_uvs(QURAN_PATH)
-    print("Loaded", len(verses), "verses.")
+    verses += load_json(KJV_PATH)
+    verses += load_json(QURAN_PATH)
+    print(f"Loaded {len(verses)} verses.")
 
-    print("Loading GCIDE...")
-    gcide = load_gcide()
-    print("GCIDE entries:", len(gcide))
+    # tokenize once
+    VERSE_WORDS = [normalize_archaic(words(v["text"])) for v in verses]
+
+    VOCAB = set()
+    for w in VERSE_WORDS:
+        VOCAB.update(w)
+
+    # ---------------- GCIDE ----------------
+
+    GCIDE = {}
+    if GCIDE_PATH.exists():
+        print("Loading GCIDE...")
+        GCIDE = json.loads(GCIDE_PATH.read_text())
+        GCIDE = {k.lower(): v for k, v in GCIDE.items()}
+        print("GCIDE entries:", len(GCIDE))
+
+    # ---------------- WORDNET ----------------
 
     print("Loading WordNet...")
-    wn = LocalWordNet(ROOT / "prolog")
-    wn.load_all()
-    print("WordNet ready.\n")
+    wn = LocalWordNet()   # <<< FIXED HERE
 
-    q_tokens = tokenize(query)
-    q_vec = vec(q_tokens)
+    # build synset->words
+    SYNSET_TO_WORDS = defaultdict(set)
+    for w, senses in wn.senses.items():
+        for s in senses:
+            SYNSET_TO_WORDS[s["synset"]].add(w)
 
-    # GCIDE fallback for single-term queries
-    if len(q_tokens) == 1 and q_tokens[0] in gcide:
-        print(f"\nGCIDE definition for '{q_tokens[0]}':\n")
-        for d in gcide[q_tokens[0]][:5]:
-            print(" •", d)
-        print()
+    # global baseline
+    GLOBAL_SENSES = defaultdict(int)
+    for wlist in VERSE_WORDS:
+        for w in wlist:
+            for m in wn.lookup(w):
+                GLOBAL_SENSES[m["synset"]] += 1
 
-    scored = []
+    GLOBAL_TOTAL = float(sum(GLOBAL_SENSES.values()) or 1)
 
-    for v in verses:
-        t = tokenize(v["text"])
-        s = cosine(q_vec, vec(t))
-        if s > 0:
-            scored.append((s, v))
+    # ---------------- QUERY ----------------
 
-    scored.sort(key=lambda x: -x[0])
+    raw_terms = [w for w in words(q) if w not in STOPWORDS]
+
+    print("\nQuery terms:", raw_terms)
+
+    # GCIDE first (modern meaning exposure)
+    for t in raw_terms:
+        if t in GCIDE:
+            print(f"\nGCIDE definition for '{t}':\n")
+            for d in GCIDE[t][:5]:
+                print(" •", d.strip())
+
+    # ---------------- SCORE PER CORPUS ----------------
 
     by_corpus = defaultdict(list)
-    for score, verse in scored:
-        verse = dict(verse)
-        verse["score"] = score
-        by_corpus[verse["corpus"]].append(verse)
 
-    for corpus in sorted(by_corpus.keys()):
+    for v, wlist in zip(verses, VERSE_WORDS):
+        if not any(t in wlist for t in raw_terms):
+            continue
+
+        LOCAL = defaultdict(int)
+        for tok in wlist:
+            if tok in raw_terms:
+                for m in wn.lookup(tok):
+                    LOCAL[m["synset"]] += 1
+
+        local_total = sum(LOCAL.values()) or 1.0
+
+        score = 0.0
+        for syn, lc in LOCAL.items():
+            gc = GLOBAL_SENSES.get(syn, 1)
+            score += (lc / local_total) - (gc / GLOBAL_TOTAL)
+
+        vv = dict(v)
+        vv["score"] = score
+        by_corpus[v["corpus"]].append(vv)
+
+    if not by_corpus:
+        print("\nNo corpus matches.")
+        return
+
+    # ---------------- OUTPUT (ADDITIVE) ----------------
+
+    for corpus, items in by_corpus.items():
         print("\n==============================")
-        print(corpus)
-        print("==============================\n")
+        print("Corpus:", corpus)
+        print("==============================")
 
-        top = by_corpus[corpus][:5]
+        ranked = sorted(items, key=lambda x: -x["score"])
 
-        for i, v in enumerate(top, 1):
-            print(f"{i}. [{v['work_title']} {v['chapter']}:{v['verse']}]")
+        seen = set()
+        out = []
+
+        for r in ranked:
+            key = (r["work"], r["chapter"], r["verse"])
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(r)
+            if len(out) >= 5:
+                break
+
+        for v in out:
+            print(f"\n[{v.get('work_title','')}] {v['chapter']}:{v['verse']}")
             print(v["text"])
-            print(f"(score {v['score']:.4f})\n")
 
 
 if __name__ == "__main__":
