@@ -13,6 +13,7 @@ CORPORA = [
     ROOT / "corpora" / "quran" / "verses_enriched.json",
     ROOT / "corpora" / "tanakh" / "verses_enriched.json",
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
+    ROOT / "corpora" / "hinduism" / "verses_enriched.json",
 ]
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
@@ -39,8 +40,8 @@ def main():
     query = sys.argv[1].lower()
     query_terms = tokenize(query)
 
-    # remove junk
-    stop = {"the", "a", "an", "and", "or", "to", "of", "i", "you", "how", "should"}
+    # minimal stoplist (keep expressions working)
+    stop = {"the", "a", "an", "and", "or", "to", "of", "you", "how", "should"}
     query_terms = [t for t in query_terms if t not in stop]
 
     if not query_terms:
@@ -71,9 +72,10 @@ def main():
     # Group by corpus
     by_corpus = defaultdict(list)
     for v in all_verses:
-        by_corpus[v["corpus"]].append(v)
+        # expects each verse to carry a "corpus" field
+        by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # Score per corpus
+    # Score per corpus (simple literal count)
     for corpus, verses in by_corpus.items():
         scored = []
 
@@ -105,6 +107,7 @@ def main():
             print(f"[{book}] {ch}:{ve}")
             print(txt)
 
+            # optional Hebrew if present
             if "text_he" in v:
                 print(v["text_he"])
 
