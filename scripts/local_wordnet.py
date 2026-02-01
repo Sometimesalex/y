@@ -16,6 +16,15 @@ class LocalWordNet:
       - wn_ant.pl (antonyms)
       - wn_sim.pl (similar)
       - wn_der.pl (derivations)
+
+    Public API:
+      senses_of(word)
+      gloss_of(sid)
+      hypernyms(sid)
+      antonyms(sid)
+      similars(sid)
+      derivations(sid)
+      expand_with_hypernym_fallback(sids, depth=1)
     """
 
     def __init__(self, prolog_dir):
@@ -37,6 +46,8 @@ class LocalWordNet:
         self._load_rel("wn_der.pl", self.der)
 
         print("WordNet ready.\n")
+
+    # ---------------- internal loaders ----------------
 
     def _open(self, name):
         path = self.root / name
@@ -76,19 +87,21 @@ class LocalWordNet:
         count = 0
         with self._open(fname) as f:
             for line in f:
-                # Works for: hyp(123,456). ant(123,456). sim(123,456). der(123,456).
-                if "(" not in line:
+                line = line.strip()
+                if not line or "(" not in line:
                     continue
                 try:
+                    # works for hyp(1,2). ant(1,2). sim(1,2). der(1,2).
                     inside = line[line.index("(")+1:line.index(")")]
                     a, b = inside.split(",")[:2]
-                    table[int(a)].add(int(b))
+                    table[int(a.strip())].add(int(b.strip()))
                     count += 1
                 except:
                     pass
         print(f"Loaded {fname} relations: {count}")
 
-    # Public API
+    # ---------------- public API ----------------
+
     def senses_of(self, word):
         return self.sense.get(word.lower(), [])
 
@@ -108,8 +121,13 @@ class LocalWordNet:
         return self.der.get(sid, set())
 
     def expand_with_hypernym_fallback(self, sids, depth=1):
+        """
+        Walk hypernyms upward so we always get something even if direct senses are sparse.
+        Returns a list of synset ids.
+        """
         seen = set(sids)
         frontier = set(sids)
+
         for _ in range(depth):
             nxt = set()
             for sid in frontier:
@@ -120,4 +138,5 @@ class LocalWordNet:
             frontier = nxt
             if not frontier:
                 break
+
         return list(seen)
