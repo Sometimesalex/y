@@ -181,6 +181,7 @@ def ask(q):
 
     last_delta = None
     shown = 0
+    seen_clusters = set()
 
     for delta, syn in ranked:
         if last_delta is not None and abs(delta - last_delta) < 0.01:
@@ -192,6 +193,11 @@ def ask(q):
                 verses_here.append(v["text"])
             if len(verses_here) >= 3:
                 break
+
+        sig = tuple(verses_here)
+        if sig in seen_clusters:
+            continue
+        seen_clusters.add(sig)
 
         print(f"\n{delta:+.4f}")
         for t in verses_here:
