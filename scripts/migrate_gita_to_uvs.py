@@ -22,17 +22,35 @@ START_MARK = "CHAPTER I"
 END_MARK = "*** END OF THE PROJECT GUTENBERG EBOOK"
 
 
+def make_verse(chapter, verse, lines):
+    return {
+        "corpus": "hinduism_bhagavad_gita_en",
+        "tradition": "hinduism",
+        "work": "bhagavad_gita",
+        "work_title": "Bhagavad Gita",
+        "chapter": chapter,
+        "verse": verse,
+        "section": str(chapter),
+        "subsection": f"{chapter}:{verse}",
+        "text": " ".join(lines),
+        "sentiment": 0.0,
+        "dominance": 0.0,
+        "compassion": 0.0,
+        "violence": 0.0,
+        "agency": 0.0,
+    }
+
+
 def main():
-    text = SRC.read_text(encoding="utf-8", errors="ignore").splitlines()
+    lines = SRC.read_text(encoding="utf-8", errors="ignore").splitlines()
 
     verses = []
-
     chapter = None
     verse_num = 0
     buffer = []
     started = False
 
-    for line in text:
+    for line in lines:
         if not started:
             if START_MARK in line:
                 started = True
@@ -43,7 +61,6 @@ def main():
 
         m = CHAPTER_RE.match(line.strip())
         if m:
-            # flush previous stanza
             if buffer and chapter:
                 verses.append(make_verse(chapter, verse_num, buffer))
                 buffer = []
@@ -74,25 +91,6 @@ def main():
 
     print("Verses written:", len(verses))
     print("Chapters:", sorted(set(v["chapter"] for v in verses)))
-
-
-def make_verse(chapter, verse, lines):
-    return {
-        "corpus": "hinduism_bhagavad_gita_en",
-        "tradition": "hinduism",
-        "work": "bhagavad_gita",
-        "work_title": "Bhagavad Gita",
-        "chapter": chapter,
-        "verse": verse,
-        "section": str(chapter),
-        "subsection": f"{chapter}:{verse}",
-        "text": " ".join(lines),
-        "sentiment": 0.0,
-        "dominance": 0.0,
-        "compassion": 0.0,
-        "violence": 0.0,
-        "agency": 0.0,
-    }
 
 
 if __name__ == "__main__":
