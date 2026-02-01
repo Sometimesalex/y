@@ -88,7 +88,7 @@ def main():
 
     print("\nLoading WordNet...")
     try:
-        wn = LocalWordNet(ROOT / "prolog")
+        wn = LocalWordNet()
         print("WordNet ready.\n")
     except Exception as e:
         print("WordNet skipped (non-fatal):", e)
