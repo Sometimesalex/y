@@ -40,8 +40,12 @@ def main():
     query = sys.argv[1].lower()
     query_terms = tokenize(query)
 
-    # minimal stoplist (keep expressions working)
-    stop = {"the", "a", "an", "and", "or", "to", "of", "you", "how", "should"}
+    # stopwords: remove grammar, keep content
+    stop = {
+        "the","a","an","and","or","to","of","you","how","should",
+        "what","is","are","was","were","be","been","am","i"
+    }
+
     query_terms = [t for t in query_terms if t not in stop]
 
     if not query_terms:
@@ -72,10 +76,9 @@ def main():
     # Group by corpus
     by_corpus = defaultdict(list)
     for v in all_verses:
-        # expects each verse to carry a "corpus" field
         by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # Score per corpus (simple literal count)
+    # Score per corpus (literal term count)
     for corpus, verses in by_corpus.items():
         scored = []
 
@@ -98,20 +101,29 @@ def main():
             print("(no matches)")
             continue
 
-        for _, v in scored[:5]:
+        shown = 0
+        for _, v in scored:
+            txt = v.get("text", "").strip()
+
+            # skip copyright / boilerplate junk
+            if "do not copy" in txt.lower():
+                continue
+
             book = v.get("work_title", "")
             ch = v.get("chapter", "")
             ve = v.get("verse", "")
-            txt = v.get("text", "").strip()
 
             print(f"[{book}] {ch}:{ve}")
             print(txt)
 
-            # optional Hebrew if present
             if "text_he" in v:
                 print(v["text_he"])
 
             print()
+
+            shown += 1
+            if shown >= 5:
+                break
 
 
 if __name__ == "__main__":
