@@ -27,6 +27,9 @@ what do you about think is are was were the a an and or of to in on for with as 
 he she they them we us i me my your his her their our
 """.split())
 
+# Ontology ceiling: block human collapse for non-human queries
+HUMAN_TERMS = {"man","men","woman","women","person","people","male","female"}
+
 # ---------------- LOAD DATA ----------------
 
 print("Loading verses...")
@@ -126,7 +129,7 @@ def normalize_term(term):
 
 # ---------------- SEMANTIC GRAPH ----------------
 
-def semantic_neighbors(synset, max_hops=1, include_derivations=True, include_hypernyms=True):
+def semantic_neighbors(synset, max_hops=1):
     out = set()
 
     rel_sets = [
@@ -138,17 +141,10 @@ def semantic_neighbors(synset, max_hops=1, include_derivations=True, include_hyp
         getattr(wn, "sub_mer", {}),
         getattr(wn, "mem_mer", {}),
         getattr(wn, "verb_groups", {}),
+        getattr(wn, "hypernyms", {}),
+        getattr(wn, "hyp", {}),
+        getattr(wn, "wn_hyp", {}),
     ]
-
-    if include_hypernyms:
-        rel_sets.extend([
-            getattr(wn, "hypernyms", {}),
-            getattr(wn, "hyp", {}),
-            getattr(wn, "wn_hyp", {}),
-        ])
-
-    if include_derivations:
-        rel_sets.append(getattr(wn, "derivations", {}))
 
     frontier = {synset}
 
@@ -188,39 +184,28 @@ def expand_query_terms(raw_terms):
 
         noun_senses = [m for m in senses if m.get("pos") == "n"]
 
-        if noun_senses:
-            seed = noun_senses
-            include_der = False
+        # Upgrade 2: modern terms behave like nouns
+        if noun_senses or t not in VOCAB:
+            seed = noun_senses if noun_senses else senses
             hops = 2
         else:
             seed = senses
-            include_der = True
             hops = 1
 
         seed_synsets = [m["synset"] for m in seed]
         all_synsets = set(seed_synsets)
 
         for s in seed_synsets:
-            all_synsets |= semantic_neighbors(
-                s,
-                max_hops=hops,
-                include_derivations=include_der,
-                include_hypernyms=True
-            )
+            all_synsets |= semantic_neighbors(s, max_hops=hops)
 
         candidates = []
         for syn in all_synsets:
             for w in SYNSET_TO_WORDS.get(syn, []):
                 if w in VOCAB and w not in STOPWORDS:
+                    # Upgrade 1: ontology ceiling
+                    if t not in HUMAN_TERMS and w in HUMAN_TERMS:
+                        continue
                     candidates.append(w)
-
-        if noun_senses:
-            def is_nounish(word):
-                for m in wn.lookup(word):
-                    if m.get("pos") == "n":
-                        return True
-                return False
-            candidates.sort(key=lambda w: (not is_nounish(w), w))
 
         final = []
         seen = set()
@@ -252,7 +237,7 @@ def ask(q, sid):
 
     expanded_terms, mapping = expand_query_terms(raw_terms)
 
-    # GCIDE fallback when original term not in Bible
+    # Per-term GCIDE fallback based on literal corpus absence
     gcide_hits = {}
     for t in raw_terms:
         if t not in VOCAB:
@@ -266,14 +251,12 @@ def ask(q, sid):
         for k, v in mapping.items():
             print(f"  {k} -> {v if v else '(no bible match)'}")
 
-    # Show GCIDE definitions first
     if gcide_hits:
         for t, defs in gcide_hits.items():
             print(f"\nGCIDE definition for '{t}':\n")
             for d in defs[:5]:
                 print(" •", d.strip())
 
-    # Continue with Bible even if GCIDE fired
     if not expanded_terms:
         return
 
