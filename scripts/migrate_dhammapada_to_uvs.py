@@ -1,4 +1,3 @@
-cat > scripts/migrate_dhammapada_to_uvs.py <<'EOF'
 #!/usr/bin/env python3
 
 import re
@@ -10,60 +9,21 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "corpora" / "buddhism" / "raw" / "dhammapada.txt"
 OUT = ROOT / "corpora" / "buddhism" / "verses_enriched.json"
 
-<<<<<<< HEAD
-VERSE_RE = re.compile(r"^\s*(\d+)\.\s+(.*)")
-END_MARK = "*** END OF THE PROJECT GUTENBERG EBOOK"
-=======
 # Matches:
 # 153. text
 # 153, 154. text
 VERSE_RE = re.compile(r"^\s*(\d+)(?:,\s*(\d+))?\.\s+(.*)")
->>>>>>> fd2ebcd (Add Buddhism Dhammapada corpus and UVS migration)
+
+MAX_VERSE = 423
 
 def main():
     with open(SRC, encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
 
     verses = []
-<<<<<<< HEAD
-    current = None
+    current_nums = []
+    current_text = ""
 
-    for line in lines:
-        if END_MARK in line:
-            break
-
-        m = VERSE_RE.match(line)
-        if m:
-            if current:
-                verses.append(current)
-
-            vnum = int(m.group(1))
-            text = m.group(2).strip()
-
-            current = {
-                "corpus": "buddhism_dhammapada_en",
-                "tradition": "buddhism",
-                "work": "dhammapada",
-                "work_title": "Dhammapada",
-                "chapter": 1,
-                "verse": vnum,
-                "section": "1",
-                "subsection": str(vnum),
-                "text": text,
-                "sentiment": 0.0,
-                "dominance": 0.0,
-                "compassion": 0.0,
-                "violence": 0.0,
-                "agency": 0.0,
-            }
-        elif current and line.strip():
-            current["text"] += " " + line.strip()
-
-    if current:
-        verses.append(current)
-=======
-    current_nums = None
-    current_text = None
     started = False
 
     for line in lines:
@@ -74,62 +34,33 @@ def main():
 
             # flush previous
             if current_nums:
-                for vnum in current_nums:
-                    verses.append(make_verse(vnum, current_text))
+                for v in current_nums:
+                    verses.append(make_entry(v, current_text))
 
             v1 = int(m.group(1))
             v2 = m.group(2)
-            text = m.group(3).strip()
 
             if v2:
                 current_nums = [v1, int(v2)]
             else:
                 current_nums = [v1]
 
-            current_text = text
+            current_text = m.group(3).strip()
 
-        elif started and current_text and line.strip():
+        elif started and current_nums and line.strip():
+            # continuation line
             current_text += " " + line.strip()
 
-    # flush last
+    # final flush
     if current_nums:
-        for vnum in current_nums:
-            verses.append(make_verse(vnum, current_text))
->>>>>>> fd2ebcd (Add Buddhism Dhammapada corpus and UVS migration)
+        for v in current_nums:
+            verses.append(make_entry(v, current_text))
+
+    # hard trim (true Dhammapada length)
+    verses = [v for v in verses if v["verse"] <= MAX_VERSE]
 
     verses.sort(key=lambda x: x["verse"])
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
-        json.dump(verses, f, ensure_ascii=False, indent=2)
-
-    print("Verses written:", len(verses))
-
-
-<<<<<<< HEAD
-if __name__ == "__main__":
-    main()
-EOF
-=======
-def make_verse(vnum, text):
-    return {
-        "corpus": "buddhism_dhammapada_en",
-        "tradition": "buddhism",
-        "work": "dhammapada",
-        "work_title": "Dhammapada",
-        "chapter": 1,
-        "verse": vnum,
-        "section": "1",
-        "subsection": str(vnum),
-        "text": text,
-        "sentiment": 0.0,
-        "dominance": 0.0,
-        "compassion": 0.0,
-        "violence": 0.0,
-        "agency": 0.0,
-    }
-
-
-if __name__ == "__main__":
-    main()
->>>>>>> fd2ebcd (Add Buddhism Dhammapada corpus and UVS migration)
+        json.dump(verses, f, en
