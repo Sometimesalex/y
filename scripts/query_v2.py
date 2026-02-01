@@ -20,6 +20,16 @@ GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
 WORD_RE = re.compile(r"[a-zA-Z']+")
 
+# common boilerplate / license junk found in Gita sources
+JUNK_PHRASES = [
+    "do not copy",
+    "electronic work",
+    "you indicate that you have read",
+    "redistribute",
+    "copyright",
+    "project gutenberg"
+]
+
 
 def tokenize(text):
     return WORD_RE.findall(text.lower())
@@ -30,6 +40,14 @@ def load_gcide():
         return {}
     with open(GCIDE_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def is_junk(text):
+    t = text.lower()
+    for j in JUNK_PHRASES:
+        if j in t:
+            return True
+    return False
 
 
 def main():
@@ -105,8 +123,8 @@ def main():
         for _, v in scored:
             txt = v.get("text", "").strip()
 
-            # skip copyright / boilerplate junk
-            if "do not copy" in txt.lower():
+            # skip boilerplate / license junk
+            if is_junk(txt):
                 continue
 
             book = v.get("work_title", "")
