@@ -1,7 +1,6 @@
 import json
 import sys
 import re
-import uuid
 from pathlib import Path
 from collections import defaultdict
 
@@ -81,9 +80,9 @@ def intent_to_theme(intent):
 
 def show(v):
     if SHOW_REFS:
-        work = v.get("work_title") or v.get("book", "")
-        sec = v.get("section") or v.get("chapter", "")
-        sub = v.get("subsection") or v.get("verse", "")
+        work = v.get("work_title", "")
+        sec = v.get("section", "")
+        sub = v.get("subsection", "")
         print(f"{work} {sec}:{sub} —", end=" ")
     print(v["text"])
 
@@ -134,12 +133,10 @@ def ask(q):
             return
 
     expanded = set()
-    mapping = {}
 
     for t in raw_terms:
         if t in VOCAB:
             expanded.add(t)
-            mapping[t] = [t]
             continue
 
         senses = []
@@ -148,33 +145,10 @@ def ask(q):
             if senses:
                 break
 
-        if not senses:
-            mapping[t] = []
-            continue
-
-        candidates = []
         for m in senses:
-            syn = m["synset"]
-            for w in SYNSET_TO_WORDS.get(syn, []):
+            for w in SYNSET_TO_WORDS.get(m["synset"], []):
                 if w in VOCAB:
-                    candidates.append(w)
-
-        final = []
-        seen = set()
-        for w in candidates:
-            if w not in seen:
-                seen.add(w)
-                final.append(w)
-            if len(final) >= 2:
-                break
-
-        mapping[t] = final
-        expanded.update(final)
-
-    if mapping:
-        print("\nTerm mapping:")
-        for k, v in mapping.items():
-            print(f"  {k} -> {v if v else '(no bible match)'}")
+                    expanded.add(w)
 
     matched = []
     LOCAL_SENSES = defaultdict(int)
@@ -205,12 +179,12 @@ def ask(q):
 
     ranked.sort(reverse=True)
 
-    seen_syn = set()
+    last_delta = None
+    shown = 0
 
     for delta, syn in ranked:
-        if syn in seen_syn:
+        if last_delta is not None and abs(delta - last_delta) < 0.01:
             continue
-        seen_syn.add(syn)
 
         verses_here = []
         for v, wlist in zip(verses, VERSE_WORDS):
@@ -223,7 +197,10 @@ def ask(q):
         for t in verses_here:
             print(" •", t)
 
-        if len(seen_syn) >= 5:
+        last_delta = delta
+        shown += 1
+
+        if shown >= 5:
             break
 
 if __name__ == "__main__":
