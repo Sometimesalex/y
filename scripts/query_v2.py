@@ -20,16 +20,6 @@ GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
 WORD_RE = re.compile(r"[a-zA-Z']+")
 
-# common boilerplate / license junk found in Gita sources
-JUNK_PHRASES = [
-    "do not copy",
-    "electronic work",
-    "you indicate that you have read",
-    "redistribute",
-    "copyright",
-    "project gutenberg"
-]
-
 
 def tokenize(text):
     return WORD_RE.findall(text.lower())
@@ -42,12 +32,31 @@ def load_gcide():
         return json.load(f)
 
 
-def is_junk(text):
-    t = text.lower()
-    for j in JUNK_PHRASES:
-        if j in t:
-            return True
-    return False
+def sane_verse(v):
+    """
+    Expel license/footer blocks by structure, not phrases.
+    """
+
+    txt = v.get("text", "")
+    ch = v.get("chapter", "")
+    ve = v.get("verse", "")
+
+    # absurdly long == footer
+    if len(txt) > 400:
+        return False
+
+    # must have numeric chapter/verse
+    try:
+        c = int(ch)
+        vv = int(ve)
+    except:
+        return False
+
+    # Bhagavad Gita never has 400+ verses per chapter
+    if vv > 200:
+        return False
+
+    return True
 
 
 def main():
@@ -58,7 +67,6 @@ def main():
     query = sys.argv[1].lower()
     query_terms = tokenize(query)
 
-    # stopwords: remove grammar, keep content
     stop = {
         "the","a","an","and","or","to","of","you","how","should",
         "what","is","are","was","were","be","been","am","i"
@@ -94,9 +102,10 @@ def main():
     # Group by corpus
     by_corpus = defaultdict(list)
     for v in all_verses:
-        by_corpus[v.get("corpus", "unknown")].append(v)
+        if sane_verse(v):
+            by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # Score per corpus (literal term count)
+    # Score per corpus
     for corpus, verses in by_corpus.items():
         scored = []
 
@@ -119,17 +128,11 @@ def main():
             print("(no matches)")
             continue
 
-        shown = 0
-        for _, v in scored:
-            txt = v.get("text", "").strip()
-
-            # skip boilerplate / license junk
-            if is_junk(txt):
-                continue
-
+        for _, v in scored[:5]:
             book = v.get("work_title", "")
             ch = v.get("chapter", "")
             ve = v.get("verse", "")
+            txt = v.get("text", "").strip()
 
             print(f"[{book}] {ch}:{ve}")
             print(txt)
@@ -138,10 +141,6 @@ def main():
                 print(v["text_he"])
 
             print()
-
-            shown += 1
-            if shown >= 5:
-                break
 
 
 if __name__ == "__main__":
