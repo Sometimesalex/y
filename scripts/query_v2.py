@@ -1,121 +1,182 @@
 #!/usr/bin/env python3
 
-import json
 import sys
 import re
+import json
 from pathlib import Path
 from collections import defaultdict
 
-from prolog_reader import LocalWordNet
-
 ROOT = Path(__file__).resolve().parents[1]
 
-CORPORA = [
-    ROOT / "corpora" / "kjv" / "verses_enriched.json",
-    ROOT / "corpora" / "quran" / "verses_enriched.json",
-    ROOT / "corpora" / "tanakh" / "verses_enriched.json",
-    ROOT / "corpora" / "buddhism" / "verses_enriched.json",
-]
-
-GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
-
+# -----------------------------
+# Stopwords (minimal set)
+# -----------------------------
 STOPWORDS = {
-    "a","an","the","and","or","but","if","then","else",
-    "is","are","was","were","be","been","being",
-    "i","me","my","mine","you","your","yours","he","she","it","we","they",
-    "this","that","these","those",
-    "what","which","who","whom","whose","when","where","why","how",
-    "should","would","could","can","may","might","must","shall",
-    "do","does","did",
-    "to","of","in","on","at","by","for","with","about","from","into","over","under",
+    "the","is","a","an","and","or","to","of","in","on","at","for","with",
+    "when","where","why","how","should","would","could","i","you","he","she",
+    "it","we","they","me","my","your","our","their","this","that","these","those"
 }
 
-def load_gcide():
-    if not GCIDE_PATH.exists():
-        return {}
-    with open(GCIDE_PATH, encoding="utf-8") as f:
-        data = json.load(f)
-    print("GCIDE entries:", len(data))
-    return data
+# -----------------------------
+# Tokenization
+# -----------------------------
+WORD_RE = re.compile(r"[a-zA-Z']+")
 
-def tokenize(question):
-    raw = [
-        t.lower()
-        for t in re.findall(r"[a-zA-Z']+", question)
-    ]
+def extract_query_terms(text):
+    words = WORD_RE.findall(text.lower())
+    return [w for w in words if w not in STOPWORDS and len(w) > 1]
 
-    filtered = [
-        t for t in raw
-        if t not in STOPWORDS and len(t) > 1
-    ]
+# -----------------------------
+# Simple Local WordNet wrapper
+# -----------------------------
+class LocalWordNet:
+    def __init__(self, prolog_dir):
+        self.prolog_dir = Path(prolog_dir)
+        self.gloss = {}
+        self.hyp = defaultdict(set)
+        self.senses = defaultdict(set)
 
-    if not filtered:
-        filtered = raw
+    def load(self):
+        files = [
+            "wn_g.pl",
+            "wn_s.pl",
+            "wn_hyp.pl",
+        ]
 
-    return filtered
+        for fname in files:
+            path = self.prolog_dir / fname
+            if not path.exists():
+                continue
 
-def load_all_verses():
-    allv = []
-    for p in CORPORA:
-        if not p.exists():
-            continue
-        with open(p, encoding="utf-8") as f:
-            allv.extend(json.load(f))
-    return allv
+            print("Opening:", path)
 
-def score(text, terms):
-    t = text.lower()
-    return sum(t.count(w) for w in terms)
+            with open(path, encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
 
+                    if fname == "wn_g.pl" and line.startswith("g("):
+                        # g(synset,'gloss').
+                        try:
+                            inside = line[2:-2]
+                            syn, gloss = inside.split(",",1)
+                            self.gloss[syn] = gloss.strip("'")
+                        except:
+                            pass
+
+                    elif fname == "wn_s.pl" and line.startswith("s("):
+                        # s(synset,_,word,_,_,_).
+                        try:
+                            parts = line[2:-2].split(",")
+                            syn = parts[0]
+                            word = parts[2].strip("'")
+                            self.senses[word].add(syn)
+                        except:
+                            pass
+
+                    elif fname == "wn_hyp.pl" and line.startswith("hyp("):
+                        # hyp(child,parent).
+                        try:
+                            inside = line[4:-2]
+                            c,p = inside.split(",")
+                            self.hyp[c].add(p)
+                        except:
+                            pass
+
+        print("WordNet ready.")
+
+    def get_lemmas(self, word):
+        out = set()
+        for syn in self.senses.get(word, []):
+            for w, syns in self.senses.items():
+                if syn in syns:
+                    out.add(w)
+        return out
+
+    def get_hypernyms(self, word):
+        out = set()
+        for syn in self.senses.get(word, []):
+            for h in self.hyp.get(syn, []):
+                for w, syns in self.senses.items():
+                    if h in syns:
+                        out.add(w)
+        return out
+
+
+# -----------------------------
+# Load corpora
+# -----------------------------
+def load_corpora():
+    corpora = []
+
+    corpora_dir = ROOT / "corpora"
+    for path in corpora_dir.rglob("verses_enriched.json"):
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+            corpora.extend(data)
+
+    print("Loaded", len(corpora), "verses.")
+    return corpora
+
+
+# -----------------------------
+# Main
+# -----------------------------
 def main():
     if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"question\"")
+        print("Usage: query_v2.py \"your question\"")
         return
 
     question = sys.argv[1]
     print("\nAsking:", question)
 
-    query_terms = tokenize(question)
+    query_terms = extract_query_terms(question)
     print("\nQuery terms:", query_terms)
 
-    gcide = load_gcide()
-
-    for term in query_terms:
-        if term in gcide:
-            print(f"\n---\nGCIDE definition for '{term}':\n")
-            for d in gcide[term]:
-                print(" •", d)
-
-    print("\nLoading WordNet...")
+    # Load WordNet
+    wn = None
     try:
-        wn = LocalWordNet()
-        print("WordNet ready.\n")
+        wn = LocalWordNet(ROOT / "prolog")
+        wn.load()
     except Exception as e:
-        print("WordNet skipped (non-fatal):", e)
+        print("\nWordNet skipped (non-fatal):", e)
 
-    verses = load_all_verses()
-    print("Loaded", len(verses), "verses.")
+    # Semantic expansion
+    expanded = set(query_terms)
 
-    grouped = defaultdict(list)
+    if wn:
+        for t in query_terms:
+            expanded |= set(wn.get_lemmas(t))
+            expanded |= set(wn.get_hypernyms(t))
+
+    query_terms = sorted(expanded)
+    print("\nExpanded terms:", query_terms)
+
+    verses = load_corpora()
+
+    # -----------------------------
+    # Naive matching (for now)
+    # -----------------------------
+    by_corpus = defaultdict(list)
 
     for v in verses:
-        s = score(v.get("text",""), query_terms)
-        if s:
-            grouped[v["corpus"]].append((s, v))
+        text = v.get("text","").lower()
+        for t in query_terms:
+            if t in text:
+                by_corpus[v["corpus"]].append(v)
+                break
 
-    for corpus, items in grouped.items():
+    # -----------------------------
+    # Output
+    # -----------------------------
+    for corpus, items in by_corpus.items():
         print("\n==============================")
         print("Corpus:", corpus)
         print("==============================\n")
 
-        items.sort(key=lambda x: -x[0])
-
-        for _, v in items[:5]:
-            ref = f'[{v["work_title"]}] {v["chapter"]}:{v["verse"]}'
+        for v in items[:5]:
+            ref = f"[{v.get('work_title','')}] {v.get('chapter','')}:{v.get('verse','')}"
             print(ref)
             print(v["text"])
-            if "text_he" in v:
-                print(v["text_he"])
             print()
 
 if __name__ == "__main__":
