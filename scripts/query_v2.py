@@ -17,6 +17,8 @@ CORPORA = [
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
 ]
 
+GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
+
 STOPWORDS = {
     "the","a","an","and","or","of","to","in","on","for","with","is","are","was",
     "were","be","been","being","that","this","these","those","i","you","he","she",
@@ -26,9 +28,11 @@ STOPWORDS = {
 
 TOP_N = 5
 
+
 def tokenize(s):
     words = re.findall(r"[a-zA-Z']+", s.lower())
     return [w for w in words if w not in STOPWORDS]
+
 
 def main():
     if len(sys.argv) < 2:
@@ -41,7 +45,23 @@ def main():
     query_terms = tokenize(question)
     print("\nQuery terms:", query_terms)
 
-    # Load WordNet (best effort)
+    # ---------------- GCIDE ----------------
+
+    if GCIDE_PATH.exists():
+        with open(GCIDE_PATH) as f:
+            gcide = json.load(f)
+
+        print("\n---")
+        for t in query_terms:
+            if t in gcide:
+                print(f"\nGCIDE definition for '{t}':")
+                for d in gcide[t][:6]:
+                    print(" •", d)
+    else:
+        print("GCIDE not found.")
+
+    # ---------------- WordNet ----------------
+
     wn = None
     try:
         wn = LocalWordNet()
@@ -50,14 +70,12 @@ def main():
 
     expanded = set(query_terms)
     boost = set()
-
     qt = set(query_terms)
 
-    # Jesus arrival soft-expansion (BOOST ONLY)
+    # Jesus arrival semantic boost (NOT filter)
     if "jesus" in qt and ("arrive" in qt or "return" in qt or "come" in qt):
         boost |= {"jesus","return","descend","appear","second"}
 
-    # Normal WordNet expansion (soft)
     if wn:
         for t in query_terms:
             try:
@@ -70,21 +88,22 @@ def main():
 
     print("\nExpanded terms:", sorted(expanded))
 
-    verses = []
+    # ---------------- Load verses ----------------
 
+    verses = []
     for path in CORPORA:
-        if not path.exists():
-            continue
-        with open(path) as f:
-            verses += json.load(f)
+        if path.exists():
+            with open(path) as f:
+                verses += json.load(f)
 
     print("Loaded", len(verses), "verses.")
+
+    # ---------------- Score ----------------
 
     scored = defaultdict(list)
 
     for v in verses:
         text = v["text"].lower()
-
         score = 0.0
 
         for t in expanded:
@@ -95,6 +114,8 @@ def main():
 
         if score > 0:
             scored[v["corpus"]].append((score, v))
+
+    # ---------------- Output ----------------
 
     for corpus, items in scored.items():
         items.sort(key=lambda x: -x[0])
@@ -108,6 +129,7 @@ def main():
             print(ref)
             print(v["text"])
             print()
+
 
 if __name__ == "__main__":
     main()
