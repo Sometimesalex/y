@@ -2,83 +2,32 @@
 
 import json
 import sys
-import math
 import re
 from pathlib import Path
 from collections import defaultdict
 
-try:
-    from scripts.local_wordnet import LocalWordNet
-except Exception:
-    try:
-        from local_wordnet import LocalWordNet
-    except Exception:
-        LocalWordNet = None
-
 ROOT = Path(__file__).resolve().parents[1]
 
 CORPORA = [
-    ROOT / "corpora" / "christianity_kjv" / "verses_enriched.json",
-    ROOT / "corpora" / "islam_quran" / "verses_enriched.json",
-    ROOT / "corpora" / "judaism_tanakh" / "verses_enriched.json",
+    ROOT / "corpora" / "kjv" / "verses_enriched.json",
+    ROOT / "corpora" / "quran" / "verses_enriched.json",
+    ROOT / "corpora" / "tanakh" / "verses_enriched.json",
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
-    ROOT / "corpora" / "hinduism" / "verses_enriched.json",
 ]
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
-STOPWORDS = {
-    "the","a","an","and","or","of","to","is","are","was","were","be","been",
-    "you","he","she","it","we","they","what","how","when","where","why",
-    "should","would","could"
-}
-
-TOP_N = 5
+WORD_RE = re.compile(r"[a-zA-Z']+")
 
 
-def normalize(s):
-    return re.sub(r"[^a-z0-9 ]+", " ", s.lower())
-
-
-def tokenize(s):
-    return [w for w in normalize(s).split() if w and w not in STOPWORDS]
-
-
-def cosine(a, b):
-    dot = sum(x*y for x, y in zip(a, b))
-    na = math.sqrt(sum(x*x for x in a))
-    nb = math.sqrt(sum(x*x for x in b))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
-
-
-def vectorize(tokens, vocab):
-    v = [0.0] * len(vocab)
-    idx = {w:i for i,w in enumerate(vocab)}
-    for t in tokens:
-        if t in idx:
-            v[idx[t]] += 1.0
-    return v
+def tokenize(text):
+    return WORD_RE.findall(text.lower())
 
 
 def load_gcide():
     if not GCIDE_PATH.exists():
         return {}
-    with open(GCIDE_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def print_gcide(gcide, terms):
-    for t in terms:
-        if t in gcide:
-            print(f"\n---\nGCIDE definition for '{t}':\n")
-            for d in gcide[t][:5]:
-                print(" •", d)
-
-
-def load_corpus(path):
-    with open(path, "r", encoding="utf-8") as f:
+    with open(GCIDE_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -87,88 +36,79 @@ def main():
         print("Usage: query_v2.py \"your question\"")
         sys.exit(1)
 
-    query = sys.argv[1]
-    print("\nAsking:", query)
-
+    query = sys.argv[1].lower()
     query_terms = tokenize(query)
 
-    # Fallback so existential queries never go empty
+    # remove junk
+    stop = {"the", "a", "an", "and", "or", "to", "of", "i", "you", "how", "should"}
+    query_terms = [t for t in query_terms if t not in stop]
+
     if not query_terms:
-        query_terms = [w.lower() for w in query.split() if len(w) > 2]
+        print("No usable query terms.")
+        sys.exit(0)
 
-    print("Query terms:", query_terms)
+    print("\nAsking:", query)
+    print("\nQuery terms:", query_terms)
 
+    # GCIDE
     gcide = load_gcide()
-    if gcide:
-        print_gcide(gcide, query_terms)
+    for t in query_terms:
+        if t in gcide:
+            print(f"\n---\nGCIDE definition for '{t}':\n")
+            for d in gcide[t][:8]:
+                print(" •", d)
 
-    expanded = set(query_terms)
+    # Load verses
+    all_verses = []
+    for path in CORPORA:
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                all_verses.extend(json.load(f))
 
-    # WordNet expansion: senses -> hypernyms -> gloss tokens
-    if LocalWordNet:
-        try:
-            wn = LocalWordNet(str(ROOT / "prolog"))
-            syns = set()
+    print("\nLoading verses...")
+    print("Loaded", len(all_verses), "verses.")
 
-            for t in query_terms:
-                syns |= set(wn.expand_with_hypernym_fallback(wn.senses_of(t), depth=1))
+    # Group by corpus
+    by_corpus = defaultdict(list)
+    for v in all_verses:
+        by_corpus[v["corpus"]].append(v)
 
-            for sid in syns:
-                g = wn.gloss_of(sid)
-                for tok in g.lower().split():
-                    if tok not in STOPWORDS and len(tok) > 2:
-                        expanded.add(tok)
+    # Score per corpus
+    for corpus, verses in by_corpus.items():
+        scored = []
 
-            print("\nExpanded terms:", sorted(expanded))
-        except Exception as e:
-            print("\nWordNet skipped (non-fatal):", e)
-
-    terms = list(expanded)
-
-    print("Searching with terms:", terms)
-
-    all_docs = []
-    for cpath in CORPORA:
-        if not cpath.exists():
-            continue
-        verses = load_corpus(cpath)
         for v in verses:
-            all_docs.append((cpath.parent.name, v))
+            text = v.get("text", "").lower()
+            score = 0
+            for t in query_terms:
+                score += text.count(t)
 
-    print("Loaded", len(all_docs), "verses.")
+            if score > 0:
+                scored.append((score, v))
 
-    vocab = set()
-    doc_tokens = []
+        scored.sort(key=lambda x: x[0], reverse=True)
 
-    for cname, v in all_docs:
-        toks = tokenize(v.get("text",""))
-        doc_tokens.append(toks)
-        vocab |= set(toks)
-
-    vocab = sorted(vocab)
-
-    qv = vectorize(terms, vocab)
-
-    scored = defaultdict(list)
-
-    # Always score every verse; ranking decides relevance
-    for (cname, v), toks in zip(all_docs, doc_tokens):
-        dv = vectorize(toks, vocab)
-        s = cosine(qv, dv)
-        scored[cname].append((s, v))
-
-    for cname in scored:
-        scored[cname].sort(key=lambda x: x[0], reverse=True)
-
-    for cname, items in scored.items():
         print("\n==============================")
-        print("Corpus:", cname)
+        print("Corpus:", corpus)
         print("==============================\n")
 
-        for s, v in items[:TOP_N]:
-            ref = v.get("ref","")
-            txt = v.get("text","").strip()
-            print(f"[{ref}] {txt}\n")
+        if not scored:
+            print("(no matches)")
+            continue
+
+        for _, v in scored[:5]:
+            book = v.get("work_title", "")
+            ch = v.get("chapter", "")
+            ve = v.get("verse", "")
+            txt = v.get("text", "").strip()
+
+            print(f"[{book}] {ch}:{ve}")
+            print(txt)
+
+            if "text_he" in v:
+                print(v["text_he"])
+
+            print()
 
 
 if __name__ == "__main__":
