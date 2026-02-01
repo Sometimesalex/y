@@ -1,12 +1,15 @@
+cat > scripts/query_v2.py <<'EOF'
 #!/usr/bin/env python3
 
 import json
 import sys
+import math
 import re
 from pathlib import Path
 from collections import defaultdict
 
-from prolog_reader import LocalWordNet
+from local_wordnet import LocalWordNet
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,18 +18,23 @@ CORPORA = [
     ROOT / "corpora" / "quran" / "verses_enriched.json",
     ROOT / "corpora" / "tanakh" / "verses_enriched.json",
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
+    ROOT / "corpora" / "hinduism" / "verses_enriched.json",
 ]
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
-STOPWORDS = {
-    "the","a","an","and","or","of","to","in","on","for","with","is","are","was",
-    "were","be","been","being","that","this","these","those","i","you","he","she",
-    "it","we","they","how","when","what","why","who","whom","which","will","shall",
-    "would","should","could","do","does","did"
-}
-
 TOP_N = 5
+
+STOPWORDS = {
+    "the","a","an","and","or","but","if","then","else",
+    "is","are","was","were","be","been","being",
+    "of","to","in","on","for","with","as","by","from",
+    "that","this","these","those",
+    "i","you","he","she","it","we","they","me","him","her","us","them",
+    "my","your","his","hers","its","our","their",
+    "what","when","where","why","how","who","whom","which",
+    "will","shall","should","would","could","may","might","must",
+}
 
 
 def tokenize(s):
@@ -34,102 +42,111 @@ def tokenize(s):
     return [w for w in words if w not in STOPWORDS]
 
 
+def cosine(a, b):
+    dot = sum(x*y for x, y in zip(a, b))
+    na = math.sqrt(sum(x*x for x in a))
+    nb = math.sqrt(sum(x*x for x in b))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
+
+
+def vectorize(tokens, vocab):
+    v = [0]*len(vocab)
+    for t in tokens:
+        if t in vocab:
+            v[vocab[t]] += 1
+    return v
+
+
+def load_gcide():
+    if not GCIDE_PATH.exists():
+        return {}
+    with open(GCIDE_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    return {k.lower(): v for k, v in data.items()}
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: query_v2.py \"your question\"")
-        return
+        sys.exit(1)
 
-    question = sys.argv[1]
-    print("\nAsking:", question)
+    query = sys.argv[1]
+    print("\nAsking:", query)
 
-    query_terms = tokenize(question)
+    query_terms = tokenize(query)
     print("\nQuery terms:", query_terms)
 
-    # ---------------- GCIDE ----------------
-
-    if GCIDE_PATH.exists():
-        with open(GCIDE_PATH) as f:
-            gcide = json.load(f)
-
-        print("\n---")
+    # GCIDE
+    gcide = load_gcide()
+    if gcide:
+        print("GCIDE entries:", len(gcide))
         for t in query_terms:
             if t in gcide:
-                print(f"\nGCIDE definition for '{t}':")
-                for d in gcide[t][:6]:
+                print(f"\n---\nGCIDE definition for '{t}':\n")
+                for d in gcide[t][:5]:
                     print(" •", d)
-    else:
-        print("GCIDE not found.")
 
-    # ---------------- WordNet ----------------
-
-    wn = None
+    # WordNet
     try:
         wn = LocalWordNet()
-    except Exception as e:
-        print("WordNet skipped:", e)
-
-    expanded = set(query_terms)
-    boost = set()
-    qt = set(query_terms)
-
-    # Jesus arrival semantic boost (NOT filter)
-    if "jesus" in qt and ("arrive" in qt or "return" in qt or "come" in qt):
-        boost |= {"jesus","return","descend","appear","second"}
-
-    if wn:
+        expanded = set(query_terms)
         for t in query_terms:
-            try:
-                expanded |= set(wn.get_lemmas(t))
-                expanded |= set(wn.get_hypernyms(t))
-            except:
-                pass
+            expanded |= set(wn.expand(t))
+        query_terms = list(expanded)
+        print("\nExpanded terms:", sorted(query_terms))
+    except Exception as e:
+        print("\nWordNet skipped (non-fatal):", e)
 
-    expanded |= boost
-
-    print("\nExpanded terms:", sorted(expanded))
-
-    # ---------------- Load verses ----------------
-
+    # Load verses
     verses = []
-    for path in CORPORA:
-        if path.exists():
-            with open(path) as f:
-                verses += json.load(f)
+    for p in CORPORA:
+        if not p.exists():
+            continue
+        with open(p, encoding="utf-8") as f:
+            verses += json.load(f)
 
     print("Loaded", len(verses), "verses.")
 
-    # ---------------- Score ----------------
-
-    scored = defaultdict(list)
-
+    docs = []
     for v in verses:
-        text = v["text"].lower()
-        score = 0.0
+        toks = tokenize(v.get("text",""))
+        docs.append((v, toks))
 
-        for t in expanded:
-            if t in text:
-                score += 1.0
-                if t in boost:
-                    score += 2.0
+    vocab = {}
+    for _, toks in docs:
+        for t in toks:
+            if t not in vocab:
+                vocab[t] = len(vocab)
 
-        if score > 0:
-            scored[v["corpus"]].append((score, v))
+    qv = vectorize(query_terms, vocab)
 
-    # ---------------- Output ----------------
+    scored = []
+    for v, toks in docs:
+        dv = vectorize(toks, vocab)
+        s = cosine(qv, dv)
+        if s > 0:
+            scored.append((s, v))
 
-    for corpus, items in scored.items():
-        items.sort(key=lambda x: -x[0])
+    scored.sort(reverse=True, key=lambda x: x[0])
 
+    grouped = defaultdict(list)
+    for s, v in scored[:200]:
+        grouped[v["corpus"]].append(v)
+
+    for corpus, items in grouped.items():
         print("\n==============================")
         print("Corpus:", corpus)
         print("==============================\n")
-
-        for score, v in items[:TOP_N]:
-            ref = f"[{v.get('work_title','')}] {v.get('chapter','')}:{v.get('verse','')}"
-            print(ref)
+        for v in items[:TOP_N]:
+            ref = v.get("work_title", v.get("work",""))
+            chap = v.get("chapter","")
+            vs = v.get("verse","")
+            print(f"[{ref}] {chap}:{vs}")
             print(v["text"])
             print()
 
-
 if __name__ == "__main__":
     main()
+EOF
