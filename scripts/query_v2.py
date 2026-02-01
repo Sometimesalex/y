@@ -7,11 +7,13 @@ import re
 from pathlib import Path
 from collections import defaultdict
 
-# Optional WordNet
 try:
-    from local_wordnet import LocalWordNet
+    from scripts.local_wordnet import LocalWordNet
 except Exception:
-    LocalWordNet = None
+    try:
+        from local_wordnet import LocalWordNet
+    except Exception:
+        LocalWordNet = None
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,7 +30,7 @@ GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 STOPWORDS = {
     "the","a","an","and","or","of","to","is","are","was","were","be","been",
     "i","you","he","she","it","we","they","what","how","when","where","why",
-    "should","would","could","am","here"
+    "should","would","could","am"
 }
 
 TOP_N = 5
@@ -89,6 +91,11 @@ def main():
     print("\nAsking:", query)
 
     query_terms = tokenize(query)
+
+    # Fallback if stopwords removed everything
+    if not query_terms:
+        query_terms = [w.lower() for w in query.split() if len(w) > 2]
+
     print("Query terms:", query_terms)
 
     gcide = load_gcide()
@@ -97,18 +104,25 @@ def main():
 
     expanded = set(query_terms)
 
-    # WordNet expansion (optional)
+    # WordNet expansion
     if LocalWordNet:
         try:
             wn = LocalWordNet(str(ROOT / "prolog"))
-            wn_terms = set()
+            wn_synsets = set()
+
             for t in query_terms:
-                try:
-                    wn_terms |= set(wn.expand(t, depth=1))
-                except Exception:
-                    pass
-            expanded |= wn_terms
+                sids = wn.senses_of(t)
+                wn_synsets |= set(wn.expand_with_hypernym_fallback(sids, depth=1))
+
+            # Convert synsets back into gloss tokens
+            for sid in wn_synsets:
+                g = wn.gloss_of(sid)
+                for tok in g.lower().split():
+                    if tok not in STOPWORDS and len(tok) > 2:
+                        expanded.add(tok)
+
             print("\nExpanded terms:", sorted(expanded))
+
         except Exception as e:
             print("\nWordNet skipped (non-fatal):", e)
 
@@ -117,22 +131,19 @@ def main():
     print("Searching with terms:", terms)
 
     all_docs = []
-    corpus_map = {}
 
     for cpath in CORPORA:
         if not cpath.exists():
             continue
-        cname = cpath.parent.name
         verses = load_corpus(cpath)
-        corpus_map[cname] = verses
         for v in verses:
-            all_docs.append((cname, v))
+            all_docs.append((cpath.parent.name, v))
 
     print("Loaded", len(all_docs), "verses.")
 
-    # Build vocab
     vocab = set()
     doc_tokens = []
+
     for cname, v in all_docs:
         toks = tokenize(v.get("text",""))
         doc_tokens.append(toks)
@@ -148,7 +159,6 @@ def main():
         dv = vectorize(toks, vocab)
         s = cosine(qv, dv)
 
-        # ALSO allow literal fallback
         literal = any(t in normalize(v.get("text","")) for t in terms)
 
         if s > 0 or literal:
