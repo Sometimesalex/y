@@ -15,6 +15,7 @@ CORPORA = [
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
     ROOT / "corpora" / "hinduism" / "verses_enriched.json",
     ROOT / "corpora" / "sikhism" / "verses_enriched.json",
+    ROOT / "corpora" / "taoism" / "verses_enriched.json",
 ]
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
@@ -38,7 +39,8 @@ def main():
         print("Usage: query_v2.py \"your question\"")
         sys.exit(1)
 
-    query = sys.argv[1].lower()
+    query_raw = sys.argv[1]
+    query = query_raw.lower()
     query_terms = tokenize(query)
 
     # basic stopwords
@@ -49,14 +51,14 @@ def main():
 
     query_terms = [t for t in query_terms if t not in stop]
 
-    print("\nAsking:", sys.argv[1])
+    print("\nAsking:", query_raw)
     print("\nQuery terms:", query_terms)
 
     if not query_terms:
         print("No usable query terms.")
         sys.exit(0)
 
-    # GCIDE
+    # GCIDE definitions (optional)
     gcide = load_gcide()
     for t in query_terms:
         if t in gcide:
@@ -79,7 +81,7 @@ def main():
     for v in all_verses:
         by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # Score per corpus (simple term frequency)
+    # Simple term-frequency scoring per corpus
     for corpus, verses in by_corpus.items():
         scored = []
 
@@ -111,11 +113,13 @@ def main():
             print(f"[{book}] {ch}:{ve}")
             print(txt)
 
-            # optional original-language fields
+            # original-language fields if present
             if "text_he" in v:
                 print(v["text_he"])
             if "text_gu" in v:
                 print(v["text_gu"])
+            if "text_zh" in v:
+                print(v["text_zh"])
 
             print()
 
