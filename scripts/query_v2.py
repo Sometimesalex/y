@@ -7,24 +7,10 @@ from pathlib import Path
 from collections import defaultdict
 
 ROOT = Path(__file__).resolve().parents[1]
-
-# All corpora (must match your folders)
-CORPORA = [
-    ROOT / "corpora" / "christianity_kjv" / "verses_enriched.json",
-    ROOT / "corpora" / "islam_quran_en" / "verses_enriched.json",
-    ROOT / "corpora" / "judaism_tanakh_en" / "verses_enriched.json",
-    ROOT / "corpora" / "buddhism_dhammapada_en" / "verses_enriched.json",
-    ROOT / "corpora" / "hinduism_bhagavad_gita_en" / "verses_enriched.json",
-    ROOT / "corpora" / "sikhism" / "verses_enriched.json",
-    ROOT / "corpora" / "taoism" / "verses_enriched.json",
-    ROOT / "corpora" / "confucianism" / "verses_enriched.json",
-    ROOT / "corpora" / "shinto_kojiki_en" / "verses_enriched.json",
-]
-
+CORPORA_ROOT = ROOT / "corpora"
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
 WORD_RE = re.compile(r"[a-zA-Z']+")
-
 TOP_N = 5
 
 
@@ -39,6 +25,11 @@ def load_gcide():
         return json.load(f)
 
 
+def discover_corpora():
+    # find EVERY verses_enriched.json anywhere under corpora/
+    return list(CORPORA_ROOT.rglob("verses_enriched.json"))
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: query_v2.py \"your question\"")
@@ -47,14 +38,13 @@ def main():
     query = sys.argv[1].lower()
     query_terms = tokenize(query)
 
-    # light stopwords only (do NOT kill meaning)
     stop = {"the", "a", "an", "and", "or", "to", "of"}
     query_terms = [t for t in query_terms if t not in stop]
 
     print("\nAsking:", query)
     print("Query terms:", query_terms)
 
-    # GCIDE (context only)
+    # GCIDE = context only
     gcide = load_gcide()
     for t in query_terms:
         if t in gcide:
@@ -62,23 +52,27 @@ def main():
             for d in gcide[t][:6]:
                 print(" •", d)
 
-    # Load verses
+    corpus_files = discover_corpora()
+
+    if not corpus_files:
+        print("No corpora found.")
+        sys.exit(1)
+
     all_verses = []
-    for path in CORPORA:
-        if path.exists():
+
+    for path in corpus_files:
+        try:
             with open(path, encoding="utf-8") as f:
                 all_verses.extend(json.load(f))
-        else:
-            print("Missing corpus:", path)
+        except Exception as e:
+            print("Failed loading:", path, e)
 
     print("\nLoaded", len(all_verses), "verses total.")
 
-    # Group by corpus
     by_corpus = defaultdict(list)
     for v in all_verses:
         by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # Score + show top N per corpus (ALWAYS)
     for corpus, verses in sorted(by_corpus.items()):
         scored = []
 
@@ -88,7 +82,6 @@ def main():
             for t in query_terms:
                 score += text.count(t)
 
-            # IMPORTANT: never filter — always append
             scored.append((score, v))
 
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -107,6 +100,7 @@ def main():
             print(f"[{ref}]")
             print(txt)
             print()
+
 
 if __name__ == "__main__":
     main()
