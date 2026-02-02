@@ -14,6 +14,7 @@ CORPORA = [
     ROOT / "corpora" / "tanakh" / "verses_enriched.json",
     ROOT / "corpora" / "buddhism" / "verses_enriched.json",
     ROOT / "corpora" / "hinduism" / "verses_enriched.json",
+    ROOT / "corpora" / "sikhism" / "verses_enriched.json",
 ]
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
@@ -32,33 +33,6 @@ def load_gcide():
         return json.load(f)
 
 
-def sane_verse(v):
-    """
-    Expel license/footer blocks by structure, not phrases.
-    """
-
-    txt = v.get("text", "")
-    ch = v.get("chapter", "")
-    ve = v.get("verse", "")
-
-    # absurdly long == footer
-    if len(txt) > 400:
-        return False
-
-    # must have numeric chapter/verse
-    try:
-        c = int(ch)
-        vv = int(ve)
-    except:
-        return False
-
-    # Bhagavad Gita never has 400+ verses per chapter
-    if vv > 200:
-        return False
-
-    return True
-
-
 def main():
     if len(sys.argv) < 2:
         print("Usage: query_v2.py \"your question\"")
@@ -67,19 +41,20 @@ def main():
     query = sys.argv[1].lower()
     query_terms = tokenize(query)
 
+    # basic stopwords
     stop = {
-        "the","a","an","and","or","to","of","you","how","should",
-        "what","is","are","was","were","be","been","am","i"
+        "the","a","an","and","or","to","of","i","you","he","she","it","we","they",
+        "how","what","is","are","was","were","am","here","should","would","could"
     }
 
     query_terms = [t for t in query_terms if t not in stop]
 
+    print("\nAsking:", sys.argv[1])
+    print("\nQuery terms:", query_terms)
+
     if not query_terms:
         print("No usable query terms.")
         sys.exit(0)
-
-    print("\nAsking:", query)
-    print("\nQuery terms:", query_terms)
 
     # GCIDE
     gcide = load_gcide()
@@ -89,7 +64,7 @@ def main():
             for d in gcide[t][:8]:
                 print(" •", d)
 
-    # Load verses
+    # Load all verses
     all_verses = []
     for path in CORPORA:
         if path.exists():
@@ -102,10 +77,9 @@ def main():
     # Group by corpus
     by_corpus = defaultdict(list)
     for v in all_verses:
-        if sane_verse(v):
-            by_corpus[v.get("corpus", "unknown")].append(v)
+        by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # Score per corpus
+    # Score per corpus (simple term frequency)
     for corpus, verses in by_corpus.items():
         scored = []
 
@@ -137,8 +111,11 @@ def main():
             print(f"[{book}] {ch}:{ve}")
             print(txt)
 
+            # optional original-language fields
             if "text_he" in v:
                 print(v["text_he"])
+            if "text_gu" in v:
+                print(v["text_gu"])
 
             print()
 
