@@ -17,22 +17,21 @@ def main():
 
     text = RAW.read_text(encoding="utf-8", errors="ignore")
 
-    # Split on SECT. markers
-    parts = re.split(r"\n\s*SECT\.\s*", text)
+    # Normalize spacing
+    text = re.sub(r"\r", "", text)
+
+    # Split by blank lines (paragraph blocks)
+    blocks = re.split(r"\n\s*\n+", text)
 
     verses = []
     idx = 1
 
-    for part in parts:
-        part = part.strip()
-        if not part:
+    for b in blocks:
+        b = b.strip()
+        if len(b) < 80:
             continue
 
-        lines = [l.strip() for l in part.splitlines() if l.strip()]
-        if not lines:
-            continue
-
-        body = " ".join(lines)
+        b = " ".join(l.strip() for l in b.splitlines())
 
         verses.append({
             "corpus": "shinto_kojiki_en",
@@ -40,7 +39,7 @@ def main():
             "chapter": "",
             "verse": str(idx),
             "ref": f"Kojiki:{idx}",
-            "text": body
+            "text": b
         })
 
         idx += 1
