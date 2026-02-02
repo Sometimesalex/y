@@ -11,6 +11,7 @@ OUT_DIR = ROOT / "corpora" / "sikhism"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 OUT_FILE = OUT_DIR / "verses_enriched.json"
+FAIL_FILE = OUT_DIR / "failed_angs.txt"
 
 BASE = "https://www.sikhitothemax.org/ang?ang={}"
 
@@ -18,9 +19,9 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
-MAX_RETRIES = 5
+MAX_RETRIES = 6
 TIMEOUT = 40
-SLEEP = 1.0
+SLEEP = 1.5
 
 def fetch_ang(n):
     url = BASE.format(n)
@@ -31,14 +32,13 @@ def fetch_ang(n):
             r.raise_for_status()
             return r.text
         except Exception as e:
-            print(f"Retry {attempt}/{MAX_RETRIES} for Ang {n}:", e)
-            time.sleep(5 * attempt)
+            print(f"Retry {attempt}/{MAX_RETRIES} Ang {n}")
+            time.sleep(6 * attempt)
 
-    raise RuntimeError(f"Failed Ang {n}")
+    return None
 
 def parse_ang(html, ang):
     soup = BeautifulSoup(html, "html.parser")
-
     rows = soup.select("div.shabad-line")
 
     verses = []
@@ -74,32 +74,44 @@ def parse_ang(html, ang):
 
 def main():
     existing = []
+    failed = set()
 
     if OUT_FILE.exists():
         with open(OUT_FILE, encoding="utf-8") as f:
             existing = json.load(f)
-        print("Resuming with", len(existing), "existing verses")
 
-    done_angs = {v["chapter"] for v in existing}
+    if FAIL_FILE.exists():
+        failed = set(int(x.strip()) for x in FAIL_FILE.read_text().splitlines() if x.strip())
+
+    done = {v["chapter"] for v in existing}
 
     all_verses = existing[:]
 
     for ang in range(1, 1431):
-        if ang in done_angs:
+        if ang in done or ang in failed:
             continue
 
         print("Fetching Ang", ang)
+
         html = fetch_ang(ang)
+
+        if html is None:
+            print("Skipping Ang", ang)
+            failed.add(ang)
+            FAIL_FILE.write_text("\n".join(str(x) for x in sorted(failed)))
+            continue
+
         verses = parse_ang(html, ang)
         all_verses.extend(verses)
 
-        # checkpoint every Ang
         with open(OUT_FILE, "w", encoding="utf-8") as f:
             json.dump(all_verses, f, ensure_ascii=False, indent=2)
 
         time.sleep(SLEEP)
 
-    print("Done. Total verses:", len(all_verses))
+    print("Finished.")
+    print("Verses:", len(all_verses))
+    print("Failed Angs:", sorted(failed))
 
 if __name__ == "__main__":
     main()
