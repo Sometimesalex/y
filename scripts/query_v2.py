@@ -8,12 +8,13 @@ from collections import defaultdict
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Correct repo corpus paths
 CORPORA = [
-    ROOT / "corpora" / "christianity_kjv" / "verses_enriched.json",
-    ROOT / "corpora" / "islam_quran_en" / "verses_enriched.json",
-    ROOT / "corpora" / "judaism_tanakh_en" / "verses_enriched.json",
-    ROOT / "corpora" / "buddhism_dhammapada_en" / "verses_enriched.json",
-    ROOT / "corpora" / "hinduism_bhagavad_gita_en" / "verses_enriched.json",
+    ROOT / "corpora" / "kjv" / "verses_enriched.json",
+    ROOT / "corpora" / "quran" / "verses_enriched.json",
+    ROOT / "corpora" / "tanakh" / "verses_enriched.json",
+    ROOT / "corpora" / "buddhism" / "verses_enriched.json",
+    ROOT / "corpora" / "hinduism" / "verses_enriched.json",
     ROOT / "corpora" / "sikhism" / "verses_enriched.json",
     ROOT / "corpora" / "taoism" / "verses_enriched.json",
     ROOT / "corpora" / "confucianism" / "verses_enriched.json",
@@ -58,8 +59,7 @@ def main():
             continue
 
         with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-            all_verses.extend(data)
+            all_verses.extend(json.load(f))
 
     print("\nLoaded", len(all_verses), "verses total.")
 
