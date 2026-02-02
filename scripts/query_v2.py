@@ -8,7 +8,6 @@ from collections import defaultdict
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Correct repo corpus paths
 CORPORA = [
     ROOT / "corpora" / "kjv" / "verses_enriched.json",
     ROOT / "corpora" / "quran" / "verses_enriched.json",
@@ -21,12 +20,21 @@ CORPORA = [
     ROOT / "corpora" / "shinto" / "verses_enriched.json",
 ]
 
+GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
+
 WORD_RE = re.compile(r"[a-zA-Z']+")
 TOP_N = 5
 
 
 def tokenize(text):
     return WORD_RE.findall(text.lower())
+
+
+def load_gcide():
+    if not GCIDE_PATH.exists():
+        return {}
+    with open(GCIDE_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def main():
@@ -50,6 +58,14 @@ def main():
     if not terms:
         print("No usable query terms.")
         sys.exit(0)
+
+    # GCIDE lookup
+    gcide = load_gcide()
+    for t in terms:
+        if t in gcide:
+            print(f"\n---\nGCIDE definition for '{t}':\n")
+            for d in gcide[t][:6]:
+                print(" •", d)
 
     all_verses = []
 
@@ -76,7 +92,8 @@ def main():
 
         for v in verses:
             txt = v.get("text","").lower()
-            score = sum(txt.count(t) for t in terms)
+            words = re.findall(r"[a-zA-Z']+", txt)
+            score = sum(words.count(t) for t in terms)
 
             if score > 0:
                 scored.append((score, v))
