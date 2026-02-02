@@ -16,15 +16,21 @@ CORPORA = [
     ROOT / "corpora" / "hinduism" / "verses_enriched.json",
     ROOT / "corpora" / "sikhism" / "verses_enriched.json",
     ROOT / "corpora" / "taoism" / "verses_enriched.json",
+    ROOT / "corpora" / "confucianism" / "verses_enriched.json",
 ]
 
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
 WORD_RE = re.compile(r"[a-zA-Z']+")
 
+STOP = {
+    "the","a","an","and","or","to","of","i","you","how","should","is","am","are",
+    "was","were","be","been","what","why","who","where","when"
+}
+
 
 def tokenize(text):
-    return WORD_RE.findall(text.lower())
+    return [w for w in WORD_RE.findall(text.lower()) if w not in STOP]
 
 
 def load_gcide():
@@ -39,34 +45,25 @@ def main():
         print("Usage: query_v2.py \"your question\"")
         sys.exit(1)
 
-    query_raw = sys.argv[1]
-    query = query_raw.lower()
+    query = sys.argv[1]
     query_terms = tokenize(query)
-
-    # basic stopwords
-    stop = {
-        "the","a","an","and","or","to","of","i","you","he","she","it","we","they",
-        "how","what","is","are","was","were","am","here","should","would","could"
-    }
-
-    query_terms = [t for t in query_terms if t not in stop]
-
-    print("\nAsking:", query_raw)
-    print("\nQuery terms:", query_terms)
 
     if not query_terms:
         print("No usable query terms.")
         sys.exit(0)
 
-    # GCIDE definitions (optional)
+    print("\nAsking:", query)
+    print("\nQuery terms:", query_terms)
+
+    # GCIDE
     gcide = load_gcide()
     for t in query_terms:
         if t in gcide:
             print(f"\n---\nGCIDE definition for '{t}':\n")
-            for d in gcide[t][:8]:
+            for d in gcide[t][:6]:
                 print(" •", d)
 
-    # Load all verses
+    # Load verses
     all_verses = []
     for path in CORPORA:
         if path.exists():
@@ -79,9 +76,9 @@ def main():
     # Group by corpus
     by_corpus = defaultdict(list)
     for v in all_verses:
-        by_corpus[v.get("corpus", "unknown")].append(v)
+        by_corpus[v["corpus"]].append(v)
 
-    # Simple term-frequency scoring per corpus
+    # Score per corpus
     for corpus, verses in by_corpus.items():
         scored = []
 
@@ -113,13 +110,8 @@ def main():
             print(f"[{book}] {ch}:{ve}")
             print(txt)
 
-            # original-language fields if present
             if "text_he" in v:
                 print(v["text_he"])
-            if "text_gu" in v:
-                print(v["text_gu"])
-            if "text_zh" in v:
-                print(v["text_zh"])
 
             print()
 
