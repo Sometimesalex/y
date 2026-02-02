@@ -18,11 +18,23 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
+MAX_RETRIES = 5
+TIMEOUT = 40
+SLEEP = 1.0
+
 def fetch_ang(n):
     url = BASE.format(n)
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
-    return r.text
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            r.raise_for_status()
+            return r.text
+        except Exception as e:
+            print(f"Retry {attempt}/{MAX_RETRIES} for Ang {n}:", e)
+            time.sleep(5 * attempt)
+
+    raise RuntimeError(f"Failed Ang {n}")
 
 def parse_ang(html, ang):
     soup = BeautifulSoup(html, "html.parser")
@@ -42,7 +54,6 @@ def parse_ang(html, ang):
         if not gu_txt and not en_txt:
             continue
 
-        # Skip license/footer junk if it ever appears
         bad = ("copyright", "do not copy", "electronic work", "united states")
         joined = (gu_txt + " " + en_txt).lower()
         if any(b in joined for b in bad):
@@ -62,19 +73,33 @@ def parse_ang(html, ang):
     return verses
 
 def main():
-    all_verses = []
+    existing = []
+
+    if OUT_FILE.exists():
+        with open(OUT_FILE, encoding="utf-8") as f:
+            existing = json.load(f)
+        print("Resuming with", len(existing), "existing verses")
+
+    done_angs = {v["chapter"] for v in existing}
+
+    all_verses = existing[:]
 
     for ang in range(1, 1431):
+        if ang in done_angs:
+            continue
+
         print("Fetching Ang", ang)
         html = fetch_ang(ang)
         verses = parse_ang(html, ang)
         all_verses.extend(verses)
-        time.sleep(0.5)
 
-    with open(OUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(all_verses, f, ensure_ascii=False, indent=2)
+        # checkpoint every Ang
+        with open(OUT_FILE, "w", encoding="utf-8") as f:
+            json.dump(all_verses, f, ensure_ascii=False, indent=2)
 
-    print("Written:", len(all_verses), "verses to", OUT_FILE)
+        time.sleep(SLEEP)
+
+    print("Done. Total verses:", len(all_verses))
 
 if __name__ == "__main__":
     main()
