@@ -1,99 +1,82 @@
 #!/usr/bin/env python3
 
 import json
-import time
-import requests
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "corpora" / "sikhism"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+RAW = ROOT / "corpora" / "sikhism" / "raw" / "sikhism.txt"
+OUT = ROOT / "corpora" / "sikhism" / "verses_enriched.json"
 
-OUT_FILE = OUT_DIR / "verses_enriched.json"
-FAIL_FILE = OUT_DIR / "failed_angs.txt"
+# Unicode block for Gurmukhi
+GURMUKHI_RE = re.compile(r"[\u0A00-\u0A7F]")
+PAGE_RE = re.compile(r"^\s*\d+\s*$")
 
-BASE = "https://api.sikhitothemax.org/ang/{}"
+def is_gurmukhi(s):
+    return bool(GURMUKHI_RE.search(s))
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
-
-MAX_RETRIES = 6
-TIMEOUT = 40
-SLEEP = 0.8
-
-def fetch_ang(n):
-    url = BASE.format(n)
-
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            print(f"Retry {attempt}/{MAX_RETRIES} Ang {n}")
-            time.sleep(5 * attempt)
-
-    return None
+def clean(line):
+    line = line.replace("❀", "").strip()
+    line = re.sub(r"\s+", " ", line)
+    return line
 
 def main():
-    existing = []
-    failed = set()
+    lines = RAW.read_text(encoding="utf-8", errors="ignore").splitlines()
 
-    if OUT_FILE.exists():
-        existing = json.loads(OUT_FILE.read_text())
+    verses = []
 
-    if FAIL_FILE.exists():
-        failed = set(int(x) for x in FAIL_FILE.read_text().splitlines() if x.strip())
+    ang = 1
+    verse = 1
 
-    done = {v["chapter"] for v in existing}
+    buf_en = []
+    buf_gu = []
 
-    all_verses = existing[:]
-
-    for ang in range(1, 1431):
-        if ang in done or ang in failed:
+    for raw in lines:
+        line = clean(raw)
+        if not line:
             continue
 
-        print("Fetching Ang", ang)
-
-        data = fetch_ang(ang)
-
-        if data is None:
-            failed.add(ang)
-            FAIL_FILE.write_text("\n".join(str(x) for x in sorted(failed)))
+        # page number
+        if PAGE_RE.match(line):
+            ang = int(line)
+            verse = 1
             continue
 
-        idx = 1
+        # skip obvious headings
+        if line.isupper() and len(line) > 10:
+            continue
 
-        for line in data.get("lines", []):
-            gu = line.get("gurmukhi", "").strip()
-            en = line.get("translation", {}).get("english", "").strip()
+        if is_gurmukhi(line):
+            buf_gu.append(line)
+        else:
+            buf_en.append(line)
 
-            if not gu and not en:
-                continue
+        # when we have both, flush
+        if buf_en and buf_gu:
+            en = " ".join(buf_en).strip()
+            gu = " ".join(buf_gu).strip()
 
-            bad = ("copyright", "electronic", "united states")
-            joined = (gu + " " + en).lower()
-            if any(b in joined for b in bad):
-                continue
+            # filter licence garbage just in case
+            bad = ("electronic", "united states", "do not copy", "redistribute")
+            joined = (en + gu).lower()
+            if not any(b in joined for b in bad):
+                verses.append({
+                    "corpus": "sikhism",
+                    "work_title": "Guru Granth Sahib",
+                    "chapter": ang,
+                    "verse": verse,
+                    "text": en,
+                    "text_gu": gu
+                })
+                verse += 1
 
-            all_verses.append({
-                "corpus": "sikhism",
-                "work_title": "Guru Granth Sahib",
-                "chapter": ang,
-                "verse": idx,
-                "text": en,
-                "text_gu": gu
-            })
+            buf_en = []
+            buf_gu = []
 
-            idx += 1
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(json.dumps(verses, ensure_ascii=False, indent=2))
 
-        OUT_FILE.write_text(json.dumps(all_verses, ensure_ascii=False, indent=2))
-        time.sleep(SLEEP)
-
-    print("Done.")
-    print("Verses:", len(all_verses))
-    print("Failed Angs:", sorted(failed))
+    print("Written verses:", len(verses))
 
 if __name__ == "__main__":
     main()
