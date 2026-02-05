@@ -150,8 +150,13 @@ def main():
         print("\n==============================")
         print("GLOBAL HUMAN FLOW CONTEXT (-500 ±300)")
         print("==============================\n")
-        for t, row in hc[:25]:
+        step = max(1, len(hc) // 25)
+        
+        for i in range(0, len(hc), step):
+            t, row = hc[i]
             print(t, row)
+            if i >= step * 25:
+                break
 
 
 if __name__ == "__main__":
