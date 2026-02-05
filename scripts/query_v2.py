@@ -9,6 +9,7 @@ from collections import defaultdict
 ROOT = Path(__file__).resolve().parents[1]
 CORPORA_ROOT = ROOT / "corpora"
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
+HUMAN_FLOW = ROOT / "corpora" / "human_flow" / "human_flow.txt"
 
 WORD_RE = re.compile(r"[a-zA-Z']+")
 TOP_N = 5
@@ -23,6 +24,42 @@ def load_gcide():
         return {}
     with open(GCIDE_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+# -----------------------------
+# Human flow loader
+# -----------------------------
+
+human_flow_events = []
+
+if HUMAN_FLOW.exists():
+    with open(HUMAN_FLOW, encoding="utf-8") as f:
+        for line in f:
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) < 3:
+                continue
+            try:
+                t = int(parts[0])
+            except:
+                t = 0
+            human_flow_events.append((t, parts[1:]))
+
+    human_flow_events.sort(key=lambda x: x[0])
+
+print("Loaded human_flow:", len(human_flow_events))
+
+
+def human_context_around(year, window=300):
+    lo = year - window
+    hi = year + window
+    out = []
+    for t, row in human_flow_events:
+        if t < lo:
+            continue
+        if t > hi:
+            break
+        out.append((t, row))
+    return out
 
 
 def discover_corpora():
@@ -81,7 +118,6 @@ def main():
             score = 0
             for t in query_terms:
                 score += text.count(t)
-
             scored.append((score, v))
 
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -99,6 +135,20 @@ def main():
             ref = f"{work} {ch}:{ve}".strip()
             print(f"[{ref}]")
             print(txt)
+            print()
+
+        # -----------------------------
+        # Human flow context (demo)
+        # -----------------------------
+        # For now we use a fixed era (-500).
+        # Later you can bind real verse dates.
+
+        hc = human_context_around(-500, window=300)
+
+        if hc:
+            print("--- Human flow context (approx -500 ±300 years) ---")
+            for t, row in hc[:10]:
+                print(t, row)
             print()
 
 
