@@ -63,7 +63,6 @@ def human_context_around(year, window=300):
 
 
 def discover_corpora():
-    # find EVERY verses_enriched.json anywhere under corpora/
     return list(CORPORA_ROOT.rglob("verses_enriched.json"))
 
 
@@ -81,7 +80,7 @@ def main():
     print("\nAsking:", query)
     print("Query terms:", query_terms)
 
-    # GCIDE = context only
+    # GCIDE
     gcide = load_gcide()
     for t in query_terms:
         if t in gcide:
@@ -110,6 +109,10 @@ def main():
     for v in all_verses:
         by_corpus[v.get("corpus", "unknown")].append(v)
 
+    # -----------------------------
+    # Scripture results
+    # -----------------------------
+
     for corpus, verses in sorted(by_corpus.items()):
         scored = []
 
@@ -137,19 +140,18 @@ def main():
             print(txt)
             print()
 
-        # -----------------------------
-        # Human flow context (demo)
-        # -----------------------------
-        # For now we use a fixed era (-500).
-        # Later you can bind real verse dates.
+    # -----------------------------
+    # GLOBAL HUMAN FLOW CONTEXT
+    # -----------------------------
 
-        hc = human_context_around(-500, window=300)
+    hc = human_context_around(-500, window=300)
 
-        if hc:
-            print("--- Human flow context (approx -500 ±300 years) ---")
-            for t, row in hc[:10]:
-                print(t, row)
-            print()
+    if hc:
+        print("\n==============================")
+        print("GLOBAL HUMAN FLOW CONTEXT (-500 ±300)")
+        print("==============================\n")
+        for t, row in hc[:25]:
+            print(t, row)
 
 
 if __name__ == "__main__":
