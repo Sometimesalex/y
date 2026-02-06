@@ -11,7 +11,7 @@ OUT = ROOT / "corpora" / "historical_events" / "verses_enriched.json"
 ENDPOINT = "https://query.wikidata.org/sparql"
 
 HEADERS = {
-    "Accept": "application/sparql+json",
+    "Accept": "application/sparql-results+json",
     "User-Agent": "y-corpora-builder/0.1 (contact: local)"
 }
 
@@ -28,9 +28,10 @@ BASE_QUERY = """
 SELECT ?itemLabel ?year ?desc WHERE {{
   ?item wdt:P31/wdt:P279* wd:{qid} .
 
-  OPTIONAL {{ ?item wdt:P585 ?time . }}
-  OPTIONAL {{ ?item wdt:P571 ?time . }}
+  OPTIONAL {{ ?item wdt:P585 ?t1 . }}
+  OPTIONAL {{ ?item wdt:P571 ?t2 . }}
 
+  BIND(COALESCE(?t1, ?t2) AS ?time)
   BIND(year(?time) AS ?year)
 
   OPTIONAL {{ ?item schema:description ?desc FILTER(lang(?desc)="en") }}
@@ -40,62 +41,124 @@ SELECT ?itemLabel ?year ?desc WHERE {{
 LIMIT 1000
 """
 
-rows = []
+INVENTION_QUERY = """
+SELECT ?itemLabel ?year ?desc WHERE {{
+  ?item wdt:P31/wdt:P279* wd:Q151885 .
 
-session = requests.Session()
-session.headers.update(HEADERS)
+  OPTIONAL {{ ?item wdt:P571 ?time . }}
+  BIND(year(?time) AS ?year)
 
-for name, qid in CLASSES.items():
-    print("Pulling:", name)
+  FILTER(?year >= {start} && ?year < {end})
 
-    q = BASE_QUERY.format(qid=qid)
+  OPTIONAL {{ ?item schema:description ?desc FILTER(lang(?desc)="en") }}
 
-    try:
-        r = session.post(ENDPOINT, data={"query": q}, timeout=60)
-    except Exception as e:
-        print("Request failed:", e)
-        continue
+  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+}}
+LIMIT 1000
+"""
 
-    if r.status_code != 200:
-        print("HTTP error:", r.status_code)
-        print(r.text[:200])
-        time.sleep(10)
-        continue
-
-    try:
-        data = r.json()
-    except Exception:
-        print("Non-JSON response (rate limited). Sleeping...")
-        time.sleep(15)
-        continue
-
-    bindings = data.get("results", {}).get("bindings", [])
-
-    print("  received:", len(bindings))
-
-    for b in bindings:
-        label = b.get("itemLabel", {}).get("value", "")
-        year = b.get("year", {}).get("value", "")
-        desc = b.get("desc", {}).get("value", "")
-
-        if not label:
+def run_query(session, query):
+    for _ in range(2):
+        try:
+            r = session.post(ENDPOINT, data={"query": query}, timeout=60)
+        except Exception:
+            time.sleep(30)
             continue
 
-        text = f"{label} {desc}".strip()
+        if r.status_code != 200:
+            time.sleep(30)
+            continue
 
-        rows.append({
-            "corpus": "historical_events",
-            "work_title": "historical_events",
-            "chapter": year,
-            "verse": label,
-            "text": text
-        })
+        try:
+            return r.json()
+        except Exception:
+            time.sleep(30)
 
-    # be VERY polite
-    time.sleep(10)
+    return None
 
-with open(OUT, "w", encoding="utf-8") as f:
-    json.dump(rows, f, ensure_ascii=False, indent=2)
 
-print("Written:", OUT)
-print("Rows:", len(rows))
+def main():
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+
+    rows = []
+
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    # normal classes
+    for name, qid in CLASSES.items():
+        if name == "invention":
+            continue
+
+        print("Pulling:", name)
+
+        q = BASE_QUERY.format(qid=qid)
+        data = run_query(session, q)
+
+        if not data:
+            print("Skipped:", name)
+            continue
+
+        bindings = data.get("results", {}).get("bindings", [])
+        print("  received:", len(bindings))
+
+        for b in bindings:
+            label = b.get("itemLabel", {}).get("value", "")
+            year = b.get("year", {}).get("value", "")
+            desc = b.get("desc", {}).get("value", "")
+
+            if not label:
+                continue
+
+            rows.append({
+                "corpus": "historical_events",
+                "work_title": "historical_events",
+                "chapter": year,
+                "verse": label,
+                "text": f"{label} {desc}".strip()
+            })
+
+        time.sleep(10)
+
+    # invention in slices
+    print("Pulling: invention (sliced)")
+
+    for start in range(1600, 2050, 50):
+        end = start + 50
+        print(f"  years {start}-{end}")
+
+        q = INVENTION_QUERY.format(start=start, end=end)
+        data = run_query(session, q)
+
+        if not data:
+            continue
+
+        bindings = data.get("results", {}).get("bindings", [])
+
+        for b in bindings:
+            label = b.get("itemLabel", {}).get("value", "")
+            year = b.get("year", {}).get("value", "")
+            desc = b.get("desc", {}).get("value", "")
+
+            if not label:
+                continue
+
+            rows.append({
+                "corpus": "historical_events",
+                "work_title": "historical_events",
+                "chapter": year,
+                "verse": label,
+                "text": f"{label} {desc}".strip()
+            })
+
+        time.sleep(10)
+
+    with open(OUT, "w", encoding="utf-8") as f:
+        json.dump(rows, f, ensure_ascii=False, indent=2)
+
+    print("Written:", OUT)
+    print("Rows:", len(rows))
+
+
+if __name__ == "__main__":
+    main()
