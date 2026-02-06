@@ -18,14 +18,11 @@ body {
   flex-direction: column;
 }
 
-/* Header */
 #header {
   padding: 20px;
   font-size: 28px;
-  letter-spacing: 2px;
 }
 
-/* Main layout */
 #main {
   flex: 1;
   display: flex;
@@ -33,7 +30,6 @@ body {
   padding: 20px;
 }
 
-/* Panels */
 .panel {
   flex: 1;
   border: 1px solid #333;
@@ -41,14 +37,12 @@ body {
   flex-direction: column;
 }
 
-/* Panel labels */
 .label {
-  padding: 8px 10px;
+  padding: 8px;
   border-bottom: 1px solid #333;
   color: #888;
 }
 
-/* Text areas */
 textarea {
   flex: 1;
   background: #000;
@@ -60,15 +54,8 @@ textarea {
   font-size: 16px;
 }
 
-/* Input styling */
-#in {
-  color: #0f0; /* terminal green */
-}
-
-/* Output styling */
-#out {
-  color: #fff;
-}
+#in { color: #0f0; }
+#out { color: #fff; }
 </style>
 </head>
 
@@ -77,18 +64,40 @@ textarea {
 <div id="header">y</div>
 
 <div id="main">
-  <!-- IN -->
   <div class="panel">
     <div class="label">in</div>
-    <textarea id="in" placeholder="type here..."></textarea>
+    <textarea id="in"></textarea>
   </div>
 
-  <!-- OUT -->
   <div class="panel">
     <div class="label">out</div>
-    <textarea id="out" readonly placeholder="response appears here..."></textarea>
+    <textarea id="out" readonly></textarea>
   </div>
 </div>
+
+<script>
+const input = document.getElementById("in");
+const output = document.getElementById("out");
+
+input.addEventListener("keydown", async e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    const q = input.value;
+    input.value = "";
+    output.value = "thinking...\n";
+
+    const r = await fetch("http://127.0.0.1:8765/querycorpora/", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({question:q})
+    });
+
+    const j = await r.json();
+    output.value = j.message || "";
+  }
+});
+</script>
 
 </body>
 </html>
