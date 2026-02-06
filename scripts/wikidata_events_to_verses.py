@@ -17,10 +17,8 @@ HEADERS = {
 
 CLASSES = {
     "war": "Q198",
-    "empire": "Q4830453",
     "pandemic": "Q3024240",
     "discovery": "Q13442814",
-    "invention": "Q151885",
     "industrialization": "Q22698"
 }
 
@@ -57,6 +55,22 @@ SELECT ?itemLabel ?year ?desc WHERE {{
 LIMIT 1000
 """
 
+EMPIRE_QUERY = """
+SELECT ?itemLabel ?year ?desc WHERE {{
+  ?item wdt:P31/wdt:P279* wd:Q4830453 .
+
+  OPTIONAL {{ ?item wdt:P571 ?time . }}
+  BIND(year(?time) AS ?year)
+
+  FILTER(?year >= {start} && ?year < {end})
+
+  OPTIONAL {{ ?item schema:description ?desc FILTER(lang(?desc)="en") }}
+
+  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+}}
+LIMIT 1000
+"""
+
 def run_query(session, query):
     for _ in range(2):
         try:
@@ -77,6 +91,24 @@ def run_query(session, query):
     return None
 
 
+def add_rows(rows, bindings):
+    for b in bindings:
+        label = b.get("itemLabel", {}).get("value", "")
+        year = b.get("year", {}).get("value", "")
+        desc = b.get("desc", {}).get("value", "")
+
+        if not label:
+            continue
+
+        rows.append({
+            "corpus": "historical_events",
+            "work_title": "historical_events",
+            "chapter": year,
+            "verse": label,
+            "text": f"{label} {desc}".strip()
+        })
+
+
 def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
 
@@ -85,11 +117,8 @@ def main():
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    # normal classes
+    # standard classes
     for name, qid in CLASSES.items():
-        if name == "invention":
-            continue
-
         print("Pulling:", name)
 
         q = BASE_QUERY.format(qid=qid)
@@ -102,25 +131,28 @@ def main():
         bindings = data.get("results", {}).get("bindings", [])
         print("  received:", len(bindings))
 
-        for b in bindings:
-            label = b.get("itemLabel", {}).get("value", "")
-            year = b.get("year", {}).get("value", "")
-            desc = b.get("desc", {}).get("value", "")
+        add_rows(rows, bindings)
+        time.sleep(10)
 
-            if not label:
-                continue
+    # empire sliced
+    print("Pulling: empire (sliced)")
 
-            rows.append({
-                "corpus": "historical_events",
-                "work_title": "historical_events",
-                "chapter": year,
-                "verse": label,
-                "text": f"{label} {desc}".strip()
-            })
+    for start in range(500, 2050, 100):
+        end = start + 100
+        print(f"  years {start}-{end}")
+
+        q = EMPIRE_QUERY.format(start=start, end=end)
+        data = run_query(session, q)
+
+        if not data:
+            continue
+
+        bindings = data.get("results", {}).get("bindings", [])
+        add_rows(rows, bindings)
 
         time.sleep(10)
 
-    # invention in slices
+    # invention sliced
     print("Pulling: invention (sliced)")
 
     for start in range(1600, 2050, 50):
@@ -134,22 +166,7 @@ def main():
             continue
 
         bindings = data.get("results", {}).get("bindings", [])
-
-        for b in bindings:
-            label = b.get("itemLabel", {}).get("value", "")
-            year = b.get("year", {}).get("value", "")
-            desc = b.get("desc", {}).get("value", "")
-
-            if not label:
-                continue
-
-            rows.append({
-                "corpus": "historical_events",
-                "work_title": "historical_events",
-                "chapter": year,
-                "verse": label,
-                "text": f"{label} {desc}".strip()
-            })
+        add_rows(rows, bindings)
 
         time.sleep(10)
 
