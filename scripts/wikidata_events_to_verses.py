@@ -12,7 +12,7 @@ ENDPOINT = "https://query.wikidata.org/sparql"
 
 HEADERS = {
     "Accept": "application/sparql+json",
-    "User-Agent": "y-corpora-builder/0.1"
+    "User-Agent": "y-corpora-builder/0.1 (contact: local)"
 }
 
 CLASSES = {
@@ -37,24 +37,43 @@ SELECT ?itemLabel ?year ?desc WHERE {{
 
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }}
-LIMIT 2000
+LIMIT 1000
 """
 
 rows = []
+
+session = requests.Session()
+session.headers.update(HEADERS)
 
 for name, qid in CLASSES.items():
     print("Pulling:", name)
 
     q = BASE_QUERY.format(qid=qid)
 
-    r = requests.post(ENDPOINT, data={"query": q}, headers=HEADERS)
-    if r.status_code != 200:
-        print("Failed:", name, r.status_code)
+    try:
+        r = session.post(ENDPOINT, data={"query": q}, timeout=60)
+    except Exception as e:
+        print("Request failed:", e)
         continue
 
-    data = r.json()
+    if r.status_code != 200:
+        print("HTTP error:", r.status_code)
+        print(r.text[:200])
+        time.sleep(10)
+        continue
 
-    for b in data["results"]["bindings"]:
+    try:
+        data = r.json()
+    except Exception:
+        print("Non-JSON response (rate limited). Sleeping...")
+        time.sleep(15)
+        continue
+
+    bindings = data.get("results", {}).get("bindings", [])
+
+    print("  received:", len(bindings))
+
+    for b in bindings:
         label = b.get("itemLabel", {}).get("value", "")
         year = b.get("year", {}).get("value", "")
         desc = b.get("desc", {}).get("value", "")
@@ -72,8 +91,8 @@ for name, qid in CLASSES.items():
             "text": text
         })
 
-    # be polite
-    time.sleep(2)
+    # be VERY polite
+    time.sleep(10)
 
 with open(OUT, "w", encoding="utf-8") as f:
     json.dump(rows, f, ensure_ascii=False, indent=2)
