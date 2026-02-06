@@ -107,8 +107,13 @@ def main():
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
-    # IMPORTANT: only print the file path
-    print(str(out_path))
+    # If running in terminal, show JSON too
+    if sys.stdout.isatty():
+        print("\nWritten:", out_path)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        # Called from web_bridge: only emit path
+        print(str(out_path))
 
 
 if __name__ == "__main__":
