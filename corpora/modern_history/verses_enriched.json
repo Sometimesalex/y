@@ -1,0 +1,1703 @@
+[
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Vatican City",
+    "text": "Vatican City Vatican 41.903282 12.453387 population 832"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "San Marino",
+    "text": "San Marino San Marino 43.936096 12.44177 population 29579"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Vaduz",
+    "text": "Vaduz Liechtenstein 47.133724 9.51667 population 36281"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lobamba",
+    "text": "Lobamba eSwatini -26.466667 31.199997 population 9782"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Luxembourg",
+    "text": "Luxembourg Luxembourg 49.61166 6.130003 population 107260"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Palikir",
+    "text": "Palikir Federated States of Micronesia 6.916644 158.149974 population 4645"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Majuro",
+    "text": "Majuro Marshall Islands 7.103004 171.38 population 25400"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Funafuti",
+    "text": "Funafuti Tuvalu -8.516652 179.216647 population 4749"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Melekeok",
+    "text": "Melekeok Palau 7.487396 134.626549 population 7026"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bir Lehlou",
+    "text": "Bir Lehlou Western Sahara 26.119167 -9.652522 population 500"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Monaco",
+    "text": "Monaco Monaco 43.739646 7.406913 population 36371"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tarawa",
+    "text": "Tarawa Kiribati 1.338188 173.017571 population 28802"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Moroni",
+    "text": "Moroni Comoros -11.704158 43.240244 population 128698"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Andorra",
+    "text": "Andorra Andorra 42.510753 1.526594 population 53998"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Port-of-Spain",
+    "text": "Port-of-Spain Trinidad and Tobago 10.651997 -61.517031 population 294934"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kigali",
+    "text": "Kigali Rwanda -1.951644 30.058586 population 860000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Mbabane",
+    "text": "Mbabane eSwatini -26.316651 31.133335 population 90138"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Juba",
+    "text": "Juba South Sudan 4.829975 31.580026 population 111975"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "The Hague",
+    "text": "The Hague Kingdom of the Netherlands 52.080037 4.269961 population 1406000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ljubljana",
+    "text": "Ljubljana Slovenia 46.055288 14.514969 population 314807"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bratislava",
+    "text": "Bratislava Slovakia 48.150018 17.116981 population 423737"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Doha",
+    "text": "Doha Qatar 25.286556 51.532968 population 1450000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Podgorica",
+    "text": "Podgorica Montenegro 42.465972 19.266307 population 145850"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Sri Jayawardenepura Kotte",
+    "text": "Sri Jayawardenepura Kotte Sri Lanka 6.900004 79.949993 population 115826"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Baguio",
+    "text": "Baguio Philippines 16.429991 120.569943 population 447824"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dodoma",
+    "text": "Dodoma United Republic of Tanzania -6.183306 35.750004 population 218269"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bern",
+    "text": "Bern Switzerland 46.916683 7.466976 population 275329"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Laayoune",
+    "text": "Laayoune Morocco 27.149982 -13.200006 population 188084"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Pristina",
+    "text": "Pristina Kosovo 42.66671 21.165984 population 465186"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Roseau",
+    "text": "Roseau Dominica 15.301016 -61.387013 population 23336"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Djibouti",
+    "text": "Djibouti Djibouti 11.595014 43.148002 population 923000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Putrajaya",
+    "text": "Putrajaya Malaysia 2.932515 101.695037 population 67964"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kyoto",
+    "text": "Kyoto Japan 35.031938 135.748052 population 1805000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Banjul",
+    "text": "Banjul Gambia, The 13.453876 -16.591701 population 43094"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Skopje",
+    "text": "Skopje North Macedonia 42.000006 21.433461 population 494087"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bridgetown",
+    "text": "Bridgetown Barbados 13.102003 -59.616527 population 191152"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Porto-Novo",
+    "text": "Porto-Novo Benin 6.483311 2.616626 population 300000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bujumbura",
+    "text": "Bujumbura Burundi -3.376087 29.360006 population 331700"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kingstown",
+    "text": "Kingstown Saint Vincent and the Grenadines 13.155756 -61.220236 population 49485"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Castries",
+    "text": "Castries Saint Lucia 14.007875 -60.992875 population 37963"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Basseterre",
+    "text": "Basseterre Saint Kitts and Nevis 17.302031 -62.717009 population 21887"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Port Louis",
+    "text": "Port Louis Mauritius -20.166639 57.499994 population 595491"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Saint George's",
+    "text": "Saint George's Grenada 12.052633 -61.741643 population 33734"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Manama",
+    "text": "Manama Bahrain 26.236136 50.583052 population 563920"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Saint John's",
+    "text": "Saint John's Antigua and Barbuda 17.118036 -61.850034 population 35499"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Montevideo",
+    "text": "Montevideo Uruguay -34.905376 -56.186823 population 1513000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lomé",
+    "text": "Lomé Togo 6.133883 1.220811 population 1452000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tunis",
+    "text": "Tunis Tunisia 36.802778 10.179678 population 2412500"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Abu Dhabi",
+    "text": "Abu Dhabi United Arab Emirates 24.466684 54.366593 population 603492"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ashgabat",
+    "text": "Ashgabat Turkmenistan 37.949995 58.383299 population 727700"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lusaka",
+    "text": "Lusaka Zambia -15.414698 28.281382 population 1328000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Harare",
+    "text": "Harare Zimbabwe -17.815844 31.042764 population 1572000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dili",
+    "text": "Dili East Timor -8.559388 125.579456 population 234331"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Port Vila",
+    "text": "Port Vila Vanuatu -17.73335 168.316641 population 44040"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tegucigalpa",
+    "text": "Tegucigalpa Honduras 14.103991 -87.219475 population 946000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Georgetown",
+    "text": "Georgetown Guyana 6.801974 -58.167029 population 264350"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Reykjavík",
+    "text": "Reykjavík Iceland 64.143459 -21.936546 population 166212"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Port-au-Prince",
+    "text": "Port-au-Prince Haiti 18.54297 -72.33798 population 1998000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kampala",
+    "text": "Kampala Uganda 0.318605 32.581378 population 1420000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Paramaribo",
+    "text": "Paramaribo Suriname 5.83503 -55.167031 population 254169"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Niamey",
+    "text": "Niamey Niger 13.518652 2.11471 population 915000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dushanbe",
+    "text": "Dushanbe Tajikistan 38.560035 68.773879 population 1086244"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Asunción",
+    "text": "Asunción Paraguay -25.290671 -57.625834 population 1870000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Managua",
+    "text": "Managua Nicaragua 12.154962 -86.270437 population 920000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Freetown",
+    "text": "Freetown Sierra Leone 8.471957 -13.236162 population 827000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Islamabad",
+    "text": "Islamabad Pakistan 33.689368 73.08063 population 780000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kathmandu",
+    "text": "Kathmandu Nepal 27.718638 85.314696 population 895000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bloemfontein",
+    "text": "Bloemfontein South Africa -29.119994 26.229913 population 463064"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Pretoria",
+    "text": "Pretoria South Africa -25.704975 28.227483 population 1338000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Port Moresby",
+    "text": "Port Moresby Papua New Guinea -9.464708 147.192504 population 283733"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Honiara",
+    "text": "Honiara Solomon Islands -9.437994 159.949766 population 76328"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Panama City",
+    "text": "Panama City Panama 8.969963 -79.534983 population 1281000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Rabat",
+    "text": "Rabat Morocco 34.025307 -6.836408 population 1705000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Chișinău",
+    "text": "Chișinău Moldova 47.005024 28.857711 population 688134"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Maputo",
+    "text": "Maputo Mozambique -25.953332 32.587217 population 1446000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Mogadishu",
+    "text": "Mogadishu Somalia 2.068627 45.364732 population 1100000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Muscat",
+    "text": "Muscat Oman 23.585179 58.378311 population 734697"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Colombo",
+    "text": "Colombo Sri Lanka 6.931966 79.857751 population 217000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ulaanbaatar",
+    "text": "Ulaanbaatar Mongolia 47.918619 106.91467 population 885000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Windhoek",
+    "text": "Windhoek Namibia -22.570006 17.083546 population 268132"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Abuja",
+    "text": "Abuja Nigeria 9.05462 7.489505 population 1576000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bissau",
+    "text": "Bissau Guinea Bissau 11.865024 -15.598361 population 403339"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Amman",
+    "text": "Amman Jordan 31.951971 35.931354 population 1060000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Vilnius",
+    "text": "Vilnius Lithuania 54.683366 25.316635 population 542366"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Riga",
+    "text": "Riga Latvia 56.950024 24.099965 population 742572"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bishkek",
+    "text": "Bishkek Kyrgyzstan 42.875025 74.583258 population 837000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Maseru",
+    "text": "Maseru Lesotho -29.316674 27.483273 population 361324"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Antananarivo",
+    "text": "Antananarivo Madagascar -18.914691 47.514678 population 1697000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Quito",
+    "text": "Quito Ecuador -0.213042 -78.501997 population 1701000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "San José",
+    "text": "San José Costa Rica 9.930371 -84.078814 population 1284000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "San Salvador",
+    "text": "San Salvador El Salvador 13.70328 -89.215576 population 1433000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kingston",
+    "text": "Kingston Jamaica 17.977077 -76.767434 population 937700"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "N'Djamena",
+    "text": "N'Djamena Chad 12.115042 15.047202 population 989000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Malabo",
+    "text": "Malabo Equatorial Guinea 3.750015 8.783278 population 155963"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Asmara",
+    "text": "Asmara Eritrea 15.333339 38.933324 population 620802"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Zagreb",
+    "text": "Zagreb Croatia 45.800007 15.999995 population 722526"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tallinn",
+    "text": "Tallinn Estonia 59.433877 24.728041 population 394024"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lilongwe",
+    "text": "Lilongwe Malawi -13.983295 33.783302 population 646750"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Guatemala City",
+    "text": "Guatemala City Guatemala 14.623081 -90.528911 population 1024000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Libreville",
+    "text": "Libreville Gabon 0.385389 9.457965 population 578156"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Suva",
+    "text": "Suva Fiji -18.133016 178.441707 population 175399"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Valparaíso",
+    "text": "Valparaíso Chile -33.047739 -71.617026 population 854000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Nouakchott",
+    "text": "Nouakchott Mauritania 18.086427 -15.97534 population 742144"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bamako",
+    "text": "Bamako Mali 12.65196 -8.001985 population 1494000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Beirut",
+    "text": "Beirut Lebanon 33.873921 35.507762 population 1846000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tbilisi",
+    "text": "Tbilisi Georgia 41.726956 44.78885 population 1100000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Nur-Sultan",
+    "text": "Nur-Sultan Kazakhstan 51.181125 71.427774 population 345604"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Vientiane",
+    "text": "Vientiane Laos 17.966693 102.59998 population 754000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Brazzaville",
+    "text": "Brazzaville Congo (Brazzaville) -4.25724 15.282744 population 1355000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Conakry",
+    "text": "Conakry Guinea 9.533469 -13.682181 population 1494000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Yamoussoukro",
+    "text": "Yamoussoukro Ivory Coast 6.818381 -5.275503 population 206499"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ottawa",
+    "text": "Ottawa Canada 45.418643 -75.701961 population 1145000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Belgrade",
+    "text": "Belgrade Republic of Serbia 44.820591 20.466045 population 1099000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bandar Seri Begawan",
+    "text": "Bandar Seri Begawan Brunei 4.883331 114.933284 population 296500"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Sucre",
+    "text": "Sucre Bolivia -19.040971 -65.259516 population 224838"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Belmopan",
+    "text": "Belmopan Belize 17.252033 -88.767073 population 15220"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bangui",
+    "text": "Bangui Central African Republic 4.366644 18.558288 population 831925"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Yaoundé",
+    "text": "Yaoundé Cameroon 3.868647 11.514705 population 1611000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tirana",
+    "text": "Tirana Albania 41.327541 19.818883 population 895350"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Yerevan",
+    "text": "Yerevan Armenia 40.183097 44.511606 population 1102000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Baku",
+    "text": "Baku Azerbaijan 40.397218 49.860271 population 2122300"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Phnom Penh",
+    "text": "Phnom Penh Cambodia 11.551976 104.914689 population 1466000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "La Paz",
+    "text": "La Paz Bolivia -16.496028 -68.151931 population 1590000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Cotonou",
+    "text": "Cotonou Benin 6.36298 2.404355 population 762000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Sofia",
+    "text": "Sofia Bulgaria 42.685295 23.314708 population 1185000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Minsk",
+    "text": "Minsk Belarus 53.901923 27.564681 population 1805000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Thimphu",
+    "text": "Thimphu Bhutan 27.472986 89.639014 population 98676"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Gaborone",
+    "text": "Gaborone Botswana -24.646314 25.911948 population 208411"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Canberra",
+    "text": "Canberra Australia -35.283029 149.129026 population 327700"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ouagadougou",
+    "text": "Ouagadougou Burkina Faso 12.372262 -1.52667 population 1149000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Sarajevo",
+    "text": "Sarajevo Bosnia and Herzegovina 43.850022 18.383002 population 696731"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Naypyidaw",
+    "text": "Naypyidaw Myanmar 19.768503 96.116673 population 930000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Nuku'alofa",
+    "text": "Nuku'alofa Tonga -21.138512 -175.220564 population 42620"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Hargeisa",
+    "text": "Hargeisa Somaliland 9.560022 44.06531 population 477876"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Victoria",
+    "text": "Victoria Seychelles -4.616632 55.44999 population 33576"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "São Tomé",
+    "text": "São Tomé Sao Tome and Principe 0.337466 6.72965 population 88219"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Apia",
+    "text": "Apia Samoa -13.835715 -171.768599 population 61916"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Valletta",
+    "text": "Valletta Malta 35.899732 14.514711 population 368250"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Malé",
+    "text": "Malé Maldives 4.172037 73.508901 population 112927"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Jerusalem",
+    "text": "Jerusalem Israel 31.778408 35.206626 population 1029300"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Praia",
+    "text": "Praia Cape Verde 14.916698 -23.516689 population 113364"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Nassau",
+    "text": "Nassau Bahamas, The 25.08339 -77.350044 population 227940"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Nicosia",
+    "text": "Nicosia Cyprus 35.166677 33.366635 population 224300"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Wellington",
+    "text": "Wellington New Zealand -41.292068 174.777201 population 393400"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Hanoi",
+    "text": "Hanoi Vietnam 21.035273 105.848068 population 4378000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ankara",
+    "text": "Ankara Turkey 39.929184 32.862446 population 3716000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Budapest",
+    "text": "Budapest Hungary 47.501952 19.081375 population 1679000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Sanaa",
+    "text": "Sanaa Yemen 15.356679 44.204648 population 2008000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bucharest",
+    "text": "Bucharest Romania 44.435318 26.098001 population 1942000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Damascus",
+    "text": "Damascus Syria 33.50198 36.29805 population 2466000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lisbon",
+    "text": "Lisbon Portugal 38.724669 -9.146812 population 2812000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Khartoum",
+    "text": "Khartoum Sudan 15.590024 32.532233 population 4754000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Oslo",
+    "text": "Oslo Kingdom of Norway 59.918636 10.748033 population 835000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Warsaw",
+    "text": "Warsaw Poland 52.230872 21.005347 population 1707000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Pyongyang",
+    "text": "Pyongyang Korea, North 39.021385 125.752745 population 3300000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dar es Salaam",
+    "text": "Dar es Salaam United Republic of Tanzania -6.798067 39.266396 population 2930000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dublin",
+    "text": "Dublin Ireland 53.346731 -6.25698 population 1059000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Monrovia",
+    "text": "Monrovia Liberia 6.314582 -10.79966 population 1041000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kuala Lumpur",
+    "text": "Kuala Lumpur Malaysia 3.139797 101.688699 population 1448000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Havana",
+    "text": "Havana Cuba 23.133905 -82.366128 population 2174000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Prague",
+    "text": "Prague Czechia 50.086967 14.422939 population 1162000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kuwait City",
+    "text": "Kuwait City Kuwait 29.371664 47.976355 population 2063000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Santo Domingo",
+    "text": "Santo Domingo Dominican Republic 18.470745 -69.929742 population 2154000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Accra",
+    "text": "Accra Ghana 5.55198 -0.218662 population 2121000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tripoli",
+    "text": "Tripoli Libya 32.8925 13.180012 population 2189000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tel Aviv",
+    "text": "Tel Aviv Israel 32.081937 34.768066 population 3112000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Helsinki",
+    "text": "Helsinki Finland 60.163804 24.932457 population 1115000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "København",
+    "text": "København Denmark 55.68051 12.56154 population 1085000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Abidjan",
+    "text": "Abidjan Ivory Coast 5.323126 -4.020207 population 3802000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Brasília",
+    "text": "Brasília Brazil -15.781394 -47.917998 population 3716996"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Brussels",
+    "text": "Brussels Belgium 50.835263 4.331371 population 1743000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dhaka",
+    "text": "Dhaka Bangladesh 23.725006 90.406634 population 12797394"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Luanda",
+    "text": "Luanda Angola -8.83634 13.232481 population 5172900"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Algiers",
+    "text": "Algiers Algeria 36.765011 3.048607 population 3354000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Yangon",
+    "text": "Yangon Myanmar 16.7853 96.164732 population 4088000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "San Francisco",
+    "text": "San Francisco United States 37.784263 -122.3996 population 3450000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Denver",
+    "text": "Denver United States 39.741134 -104.985962 population 2313000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Houston",
+    "text": "Houston United States 29.741273 -95.348436 population 4459000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Miami",
+    "text": "Miami United States 25.789557 -80.226052 population 5585000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Atlanta",
+    "text": "Atlanta United States 33.739457 -84.367642 population 4506000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Chicago",
+    "text": "Chicago United States 41.847961 -87.635237 population 8990000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Caracas",
+    "text": "Caracas Venezuela 10.502944 -66.918983 population 2985000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kyiv",
+    "text": "Kyiv Ukraine 50.435313 30.514682 population 2709000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dubai",
+    "text": "Dubai United Arab Emirates 25.214912 55.286946 population 1379000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tashkent",
+    "text": "Tashkent Uzbekistan 41.303828 69.268823 population 2184000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Madrid",
+    "text": "Madrid Kingdom of Spain 40.401972 -3.685297 population 5567000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Geneva",
+    "text": "Geneva Switzerland 46.210008 6.140028 population 1240000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Stockholm",
+    "text": "Stockholm Sweden 59.324127 18.0663 population 1264000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bangkok",
+    "text": "Bangkok Thailand 13.751945 100.514699 population 6704000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lima",
+    "text": "Lima Peru -12.046067 -77.052008 population 8012000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Dakar",
+    "text": "Dakar Senegal 14.717778 -17.475076 population 2604000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Johannesburg",
+    "text": "Johannesburg South Africa -26.168099 28.028064 population 3435000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Amsterdam",
+    "text": "Amsterdam Kingdom of the Netherlands 52.351914 4.914694 population 1031000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Casablanca",
+    "text": "Casablanca Morocco 33.601922 -7.618313 population 3181000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Seoul",
+    "text": "Seoul Korea, South 37.568295 126.997785 population 9796000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Manila",
+    "text": "Manila Philippines 14.606105 120.980271 population 11100000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Monterrey",
+    "text": "Monterrey Mexico 25.671941 -100.331931 population 3712000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Berlin",
+    "text": "Berlin Germany 52.523764 13.399603 population 3406000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ürümqi",
+    "text": "Ürümqi China 43.806958 87.57306 population 3575000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Chengdu",
+    "text": "Chengdu China 30.671946 104.068074 population 4123000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Ōsaka",
+    "text": "Ōsaka Japan 34.691095 135.503754 population 11294000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kinshasa",
+    "text": "Kinshasa Congo (Kinshasa) -4.327778 15.313026 population 7843000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "New Delhi",
+    "text": "New Delhi India 28.600023 77.19998 population 317797"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bengaluru",
+    "text": "Bengaluru India 12.971941 77.558064 population 6787000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Athens",
+    "text": "Athens Greece 37.985272 23.731375 population 3242000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Baghdad",
+    "text": "Baghdad Iraq 33.340594 44.391923 population 5054000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Addis Ababa",
+    "text": "Addis Ababa Ethiopia 9.035256 38.698059 population 3100000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tehran",
+    "text": "Tehran Iran 35.673889 51.422398 population 7873000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Vancouver",
+    "text": "Vancouver Canada 49.275362 -123.12359 population 2313328"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Toronto",
+    "text": "Toronto Canada 43.664645 -79.389459 population 5213000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Buenos Aires",
+    "text": "Buenos Aires Argentina -34.610715 -58.432513 population 12795000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kabul",
+    "text": "Kabul Afghanistan 34.518636 69.181314 population 3277000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Vienna",
+    "text": "Vienna Austria 48.201961 16.364693 population 2400000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Melbourne",
+    "text": "Melbourne Australia -37.818086 144.97307 population 4170000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Taipei",
+    "text": "Taipei Taiwan 25.035833 121.568333 population 6900273"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Auckland",
+    "text": "Auckland New Zealand -36.848055 174.763027 population 1377200"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Los Angeles",
+    "text": "Los Angeles United States 34.049219 -118.231986 population 12500000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Washington,  D.C.",
+    "text": "Washington,  D.C. United States 38.901495 -77.011364 population 4338000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "New York",
+    "text": "New York United States 40.721562 -73.995718 population 19040000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "London",
+    "text": "London United Kingdom 51.501941 -0.118668 population 8567000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Istanbul",
+    "text": "Istanbul Turkey 41.017602 28.974277 population 10061000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Riyadh",
+    "text": "Riyadh Saudi Arabia 24.634497 46.720487 population 4465000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Cape Town",
+    "text": "Cape Town South Africa -33.918065 18.433042 population 3215000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Moscow",
+    "text": "Moscow Russia 55.75411 37.613577 population 10452000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Mexico City",
+    "text": "Mexico City Mexico 19.444388 -99.132934 population 19028000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Lagos",
+    "text": "Lagos Nigeria 6.445208 3.389585 population 9466000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Rome",
+    "text": "Rome Italy 41.897902 12.481313 population 3339000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Beijing",
+    "text": "Beijing China 39.90172 116.394201 population 11106000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Nairobi",
+    "text": "Nairobi Kenya -1.281401 36.814711 population 3010000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Jakarta",
+    "text": "Jakarta Indonesia -6.172472 106.827492 population 9125000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Bogota",
+    "text": "Bogota Colombia 4.598369 -74.08529 population 7772000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Cairo",
+    "text": "Cairo Egypt 30.051906 31.248022 population 11893000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Shanghai",
+    "text": "Shanghai China 31.218398 121.434559 population 14987000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Tokyo",
+    "text": "Tokyo Japan 35.686963 139.749462 population 35676000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Mumbai",
+    "text": "Mumbai India 19.068408 72.875839 population 18978000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Paris",
+    "text": "Paris French Republic 48.858092 2.352992 population 9904000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Santiago",
+    "text": "Santiago Chile -33.440205 -70.650504 population 5720000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Kolkata",
+    "text": "Kolkata India 22.569579 88.369126 population 14787000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Rio de Janeiro",
+    "text": "Rio de Janeiro Brazil -22.907308 -43.212117 population 11748000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "São Paulo",
+    "text": "São Paulo Brazil -23.556734 -46.626966 population 18845000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Sydney",
+    "text": "Sydney Australia -33.871373 151.212548 population 4630000"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Singapore",
+    "text": "Singapore Singapore 1.294979 103.853875 population 5183700"
+  },
+  {
+    "corpus": "modern_history",
+    "work_title": "modern_history",
+    "chapter": "place",
+    "verse": "Hong Kong",
+    "text": "Hong Kong China 22.306927 114.183064 population 7206000"
+  }
+]
