@@ -1,80 +1,44 @@
 #!/usr/bin/env python3
 
-import json
+import subprocess
 import sys
-import re
 import time
-import os
 from pathlib import Path
-from collections import defaultdict
 
 ROOT = Path(__file__).resolve().parents[1]
-CORPORA_ROOT = ROOT / "corpora"
-OUT_DIR = ROOT / "querycorpora"
+OUT = ROOT / "querycorpora"
 
-WORD_RE = re.compile(r"[a-zA-Z']+")
+if len(sys.argv) < 2:
+    print('Usage: query_v2.py "your question"')
+    sys.exit(1)
 
+# Full question (allow spaces)
+question = " ".join(sys.argv[1:])
 
-def tokenize(text):
-    return WORD_RE.findall(text.lower())
+# Run query_v3.py and capture EVERYTHING it prints
+proc = subprocess.run(
+    ["python3", "scripts/query_v3.py", question],
+    capture_output=True,
+    text=True
+)
 
+raw = proc.stdout
 
-def discover_corpora():
-    return list(CORPORA_ROOT.rglob("verses_enriched.json"))
+# Ensure output directory exists
+OUT.mkdir(exist_ok=True)
 
+# Timestamped file
+ts = int(time.time())
+path = OUT / f"{ts}.json"
 
-def main():
-    if len(sys.argv) > 1:
-        query = " ".join(sys.argv[1:]).strip()
-    else:
-        query = sys.stdin.read().strip()
+# Save raw sensory dump verbatim
+with open(path, "w", encoding="utf-8") as f:
+    f.write(raw)
 
-    query_terms = tokenize(query)
-    stop = {"the","a","an","and","or","to","of"}
-    query_terms = [t for t in query_terms if t not in stop]
-
-    corpus_files = discover_corpora()
-
-    corpora = defaultdict(list)
-
-    for path in corpus_files:
-        try:
-            verses = json.load(open(path, encoding="utf-8"))
-        except Exception:
-            continue
-
-        for v in verses:
-            text = (v.get("text","") or "").lower()
-            score = sum(text.count(t) for t in query_terms)
-
-            if score > 0:
-                corpora[v.get("corpus","unknown")].append({
-                    "work_title": v.get("work_title",""),
-                    "chapter": v.get("chapter",""),
-                    "verse": v.get("verse",""),
-                    "text": v.get("text",""),
-                    "score": score
-                })
-
-    payload = {
-        "query": query,
-        "terms": query_terms,
-        "corpora": corpora
-    }
-
-    os.makedirs(OUT_DIR, exist_ok=True)
-    ts = int(time.time())
-    out_path = OUT_DIR / f"{ts}.json"
-
-    with open(out_path,"w",encoding="utf-8") as f:
-        json.dump(payload,f,ensure_ascii=False,indent=2)
-
-    if sys.stdout.isatty():
-        print("\nWritten:", out_path)
-        print(json.dumps(payload,ensure_ascii=False,indent=2))
-    else:
-        print(str(out_path))
-
-
-if __name__ == "__main__":
-    main()
+# Terminal: show sensory field + where it was written
+if sys.stdout.isatty():
+    print(raw)
+    print("\nWritten:", path)
+else:
+    # Web bridge just needs the file path
+    print(str(path))
