@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>y terminal</title>
+
+<style>
+body {
+  background:#000;
+  color:#0f0;
+  font-family: monospace;
+  padding:30px;
+}
+
+#terminal {
+  max-width:800px;
+}
+
+input {
+  width:100%;
+  background:#000;
+  color:#0f0;
+  border:none;
+  outline:none;
+  font-family: monospace;
+  font-size:16px;
+}
+
+#output {
+  white-space:pre-wrap;
+  margin-top:20px;
+  color:#fff;
+}
+</style>
+</head>
+
+<body>
+
+<div id="terminal">
+  <div>> ask:</div>
+  <input id="q" autofocus placeholder="type question and press enter" />
+
+  <div id="output"></div>
+</div>
+
+<script>
+const input = document.getElementById("q");
+const out = document.getElementById("output");
+
+input.addEventListener("keydown", async e => {
+  if (e.key === "Enter") {
+    const q = input.value;
+    input.value = "";
+    out.textContent = "thinking...\n";
+
+    const r = await fetch("http://127.0.0.1:8765/ask", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({question:q})
+    });
+
+    const j = await r.json();
+    out.textContent = j.message || "";
+  }
+});
+</script>
+
+</body>
+</html>
