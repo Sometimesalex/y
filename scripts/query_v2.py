@@ -19,6 +19,14 @@ def tokenize(text):
     return WORD_RE.findall(text.lower())
 
 
+def score_text(text, terms):
+    s = text.lower()
+    score = 0
+    for t in terms:
+        score += s.count(t)
+    return score
+
+
 def load_gcide():
     if not GCIDE_PATH.exists():
         return {}
@@ -44,22 +52,7 @@ if HUMAN_FLOW.exists():
                 t = 0
             human_flow_events.append((t, parts[1:]))
 
-    human_flow_events.sort(key=lambda x: x[0])
-
 print("Loaded human_flow:", len(human_flow_events))
-
-
-def human_context_around(year, window=300):
-    lo = year - window
-    hi = year + window
-    out = []
-    for t, row in human_flow_events:
-        if t < lo:
-            continue
-        if t > hi:
-            break
-        out.append((t, row))
-    return out
 
 
 def discover_corpora():
@@ -118,9 +111,7 @@ def main():
 
         for v in verses:
             text = v.get("text", "").lower()
-            score = 0
-            for t in query_terms:
-                score += text.count(t)
+            score = score_text(text, query_terms)
             scored.append((score, v))
 
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -141,22 +132,26 @@ def main():
             print()
 
     # -----------------------------
-    # GLOBAL HUMAN FLOW CONTEXT
+    # HUMAN FLOW KEYWORD SEARCH
     # -----------------------------
 
-    hc = human_context_around(-500, window=300)
+    hf_scored = []
 
-    if hc:
+    for t, row in human_flow_events:
+        line = " ".join(row)
+        s = score_text(line, query_terms)
+        if s > 0:
+            hf_scored.append((s, t, row))
+
+    hf_scored.sort(reverse=True)
+
+    if hf_scored:
         print("\n==============================")
-        print("GLOBAL HUMAN FLOW CONTEXT (-500 ±300)")
+        print("HUMAN FLOW MATCHES")
         print("==============================\n")
-        step = max(1, len(hc) // 25)
-        
-        for i in range(0, len(hc), step):
-            t, row = hc[i]
-            print(t, row)
-            if i >= step * 25:
-                break
+
+        for score, t, row in hf_scored[:TOP_N * 2]:
+            print(f"[{t}] {row}")
 
 
 if __name__ == "__main__":
