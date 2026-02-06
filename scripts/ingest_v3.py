@@ -1,106 +1,58 @@
-#!/usr/bin/env python3
-
 import json
-import sys
 import re
 from pathlib import Path
-from collections import defaultdict
 
-ROOT = Path(__file__).resolve().parents[1]
-CORPORA_ROOT = ROOT / "corpora"
-GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
+BASE = Path("corpora")
+OUTPUT = Path("output")
+OUTPUT.mkdir(exist_ok=True)
 
-WORD_RE = re.compile(r"[a-zA-Z']+")
-TOP_N = 5
+marker = re.compile(r"(\d+):(\d+)")
 
+global_index = {}
 
-def tokenize(text):
-    return WORD_RE.findall(text.lower())
+for corpus_dir in BASE.iterdir():
+    if not corpus_dir.is_dir():
+        continue
 
+    corpus = corpus_dir.name
+    raw = corpus_dir / "raw.txt"
+    if not raw.exists():
+        continue
 
-def load_gcide():
-    if not GCIDE_PATH.exists():
-        return {}
-    with open(GCIDE_PATH, encoding="utf-8") as f:
-        return json.load(f)
+    text = raw.read_text(errors="ignore")
 
+    start = text.find("*** START")
+    if start != -1:
+        text = text[start:]
 
-def discover_corpora():
-    # find EVERY verses_enriched.json anywhere under corpora/
-    return list(CORPORA_ROOT.rglob("verses_enriched.json"))
+    matches = list(marker.finditer(text))
 
+    verses = []
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: query_v2.py \"your question\"")
-        sys.exit(1)
+    for i in range(len(matches)):
+        m = matches[i]
 
-    query = sys.argv[1].lower()
-    query_terms = tokenize(query)
+        chapter = int(m.group(1))
+        verse = int(m.group(2))
 
-    stop = {"the", "a", "an", "and", "or", "to", "of"}
-    query_terms = [t for t in query_terms if t not in stop]
+        content_start = m.end()
+        content_end = matches[i+1].start() if i+1 < len(matches) else len(text)
 
-    print("\nAsking:", query)
-    print("Query terms:", query_terms)
+        chunk = text[content_start:content_end]
 
-    # GCIDE = context only
-    gcide = load_gcide()
-    for t in query_terms:
-        if t in gcide:
-            print(f"\n---\nGCIDE definition for '{t}':\n")
-            for d in gcide[t][:6]:
-                print(" •", d)
+        # Remove leading punctuation/whitespace
+        chunk = chunk.lstrip(" .:-\n\r\t")
 
-    corpus_files = discover_corpora()
+        verses.append({
+            "corpus": corpus,
+            "chapter": chapter,
+            "verse": verse,
+            "text": " ".join(chunk.split())
+        })
 
-    if not corpus_files:
-        print("No corpora found.")
-        sys.exit(1)
+    (corpus_dir / "verses.json").write_text(json.dumps(verses, indent=2))
+    global_index[corpus] = len(verses)
 
-    all_verses = []
+(Path("output") / "index.json").write_text(json.dumps(global_index, indent=2))
 
-    for path in corpus_files:
-        try:
-            with open(path, encoding="utf-8") as f:
-                all_verses.extend(json.load(f))
-        except Exception as e:
-            print("Failed loading:", path, e)
-
-    print("\nLoaded", len(all_verses), "verses total.")
-
-    by_corpus = defaultdict(list)
-    for v in all_verses:
-        by_corpus[v.get("corpus", "unknown")].append(v)
-
-    for corpus, verses in sorted(by_corpus.items()):
-        scored = []
-
-        for v in verses:
-            text = v.get("text", "").lower()
-            score = 0
-            for t in query_terms:
-                score += text.count(t)
-
-            scored.append((score, v))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-
-        print("\n==============================")
-        print("Corpus:", corpus)
-        print("==============================\n")
-
-        for score, v in scored[:TOP_N]:
-            work = v.get("work_title", corpus)
-            ch = v.get("chapter", "")
-            ve = v.get("verse", "")
-            txt = v.get("text", "").strip()
-
-            ref = f"{work} {ch}:{ve}".strip()
-            print(f"[{ref}]")
-            print(txt)
-            print()
-
-
-if __name__ == "__main__":
-    main()
+print(global_index)
