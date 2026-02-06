@@ -9,7 +9,6 @@ from collections import defaultdict
 ROOT = Path(__file__).resolve().parents[1]
 CORPORA_ROOT = ROOT / "corpora"
 GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
-HUMAN_FLOW = ROOT / "corpora" / "human_flow" / "human_flow.txt"
 
 WORD_RE = re.compile(r"[a-zA-Z']+")
 TOP_N = 5
@@ -19,14 +18,6 @@ def tokenize(text):
     return WORD_RE.findall(text.lower())
 
 
-def score_text(text, terms):
-    s = text.lower()
-    score = 0
-    for t in terms:
-        score += s.count(t)
-    return score
-
-
 def load_gcide():
     if not GCIDE_PATH.exists():
         return {}
@@ -34,28 +25,8 @@ def load_gcide():
         return json.load(f)
 
 
-# -----------------------------
-# Human flow loader
-# -----------------------------
-
-human_flow_events = []
-
-if HUMAN_FLOW.exists():
-    with open(HUMAN_FLOW, encoding="utf-8") as f:
-        for line in f:
-            parts = line.rstrip("\n").split("\t")
-            if len(parts) < 3:
-                continue
-            try:
-                t = int(parts[0])
-            except:
-                t = 0
-            human_flow_events.append((t, parts[1:]))
-
-print("Loaded human_flow:", len(human_flow_events))
-
-
 def discover_corpora():
+    # find EVERY verses_enriched.json anywhere under corpora/
     return list(CORPORA_ROOT.rglob("verses_enriched.json"))
 
 
@@ -73,7 +44,7 @@ def main():
     print("\nAsking:", query)
     print("Query terms:", query_terms)
 
-    # GCIDE
+    # GCIDE = context only
     gcide = load_gcide()
     for t in query_terms:
         if t in gcide:
@@ -102,16 +73,15 @@ def main():
     for v in all_verses:
         by_corpus[v.get("corpus", "unknown")].append(v)
 
-    # -----------------------------
-    # Scripture results
-    # -----------------------------
-
     for corpus, verses in sorted(by_corpus.items()):
         scored = []
 
         for v in verses:
             text = v.get("text", "").lower()
-            score = score_text(text, query_terms)
+            score = 0
+            for t in query_terms:
+                score += text.count(t)
+
             scored.append((score, v))
 
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -130,28 +100,6 @@ def main():
             print(f"[{ref}]")
             print(txt)
             print()
-
-    # -----------------------------
-    # HUMAN FLOW KEYWORD SEARCH
-    # -----------------------------
-
-    hf_scored = []
-
-    for t, row in human_flow_events:
-        line = " ".join(row)
-        s = score_text(line, query_terms)
-        if s > 0:
-            hf_scored.append((s, t, row))
-
-    hf_scored.sort(reverse=True)
-
-    if hf_scored:
-        print("\n==============================")
-        print("HUMAN FLOW MATCHES")
-        print("==============================\n")
-
-        for score, t, row in hf_scored[:TOP_N * 2]:
-            print(f"[{t}] {row}")
 
 
 if __name__ == "__main__":
