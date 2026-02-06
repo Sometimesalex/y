@@ -87,7 +87,7 @@ input.addEventListener("keydown", async e => {
     input.value = "";
     output.value = "thinking...\n";
 
-    const r = await fetch("http://127.0.0.1:8765/querycorpora/", {
+    const r = await fetch("/querycorpora/", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({question:q})
