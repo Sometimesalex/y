@@ -8,8 +8,12 @@ HOST = "127.0.0.1"
 PORT = 8765
 
 class Handler(BaseHTTPRequestHandler):
+
+    def log_message(self, format, *args):
+        return
+
     def do_POST(self):
-        if self.path != "/ask":
+        if self.path != "/querycorpora/":
             self.send_response(404)
             self.end_headers()
             return
@@ -25,26 +29,12 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        if not question.strip():
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b'{"message":""}')
-            return
-
-        # Run query_v2.py
         q = subprocess.run(
             ["python3", "scripts/query_v2.py", question],
             capture_output=True,
             text=True
         )
 
-        if q.returncode != 0:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(q.stderr.encode())
-            return
-
-        # Send JSON output into interpreter via stdin
         i = subprocess.run(
             ["python3", "scripts/interpreter.py"],
             input=q.stdout,
@@ -52,14 +42,13 @@ class Handler(BaseHTTPRequestHandler):
             text=True
         )
 
-        message = i.stdout.strip()
-
-        out = json.dumps({"message": message})
+        out = json.dumps({"message": i.stdout})
 
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(out.encode("utf-8"))
+        self.wfile.write(out.encode())
 
 
 if __name__ == "__main__":
