@@ -29,15 +29,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        q = subprocess.run(
+        # Run producer (writes querycorpora/*.json)
+        subprocess.run(
             ["python3", "scripts/query_v2.py", question],
             capture_output=True,
             text=True
         )
 
+        # Run interpreter (reads newest json)
         i = subprocess.run(
             ["python3", "scripts/interpreter.py"],
-            input=q.stdout,
             capture_output=True,
             text=True
         )
