@@ -29,10 +29,21 @@ jobs:
             echo "No requirements.txt found, skipping pip install"
           fi
 
-      - name: Run query engine
+      - name: Run query engine (raw output)
         run: |
           echo "[query.yml] Running query_v2.py"
           python scripts/query_v2.py "${{ inputs.text }}"
+
+      - name: Convert querycorpora output to strict JSON
+        run: |
+          echo "[query.yml] Converting querycorpora output"
+          python scripts/convert_querycorpora_to_json.py
+
+          echo "[query.yml] Converted JSON content:"
+          LATEST=$(ls -1 querycorpora/*.converted.json | tail -n 1)
+          echo "---- $LATEST ----"
+          cat "$LATEST"
+          echo "-----------------"
 
       - name: Run interpreter
         run: |
