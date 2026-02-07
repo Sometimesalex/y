@@ -6,7 +6,7 @@ from datetime import datetime
 
 # ---- paths (adjust later if needed) ----
 ROOT = Path(__file__).resolve().parents[1]
-INTERPRETER_OUTPUT = ROOT / "output" / "interpreter_result.json"
+INTERPRETER_OUTPUT = ROOT / "Interpreteroutput" / "interpreter_result.json"
 WEB_DIR = ROOT / "web"
 OUTPUT_HTML = WEB_DIR / "index.html"
 
