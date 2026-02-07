@@ -1,41 +1,59 @@
-name: Build Corpora Dataset
+name: Run Query Engine
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "corpora/**"
-      - "scripts/**"
+    inputs:
+      text:
+        description: "User query text"
+        required: true
+        type: string
 
 jobs:
-  build:
+  query:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Run ingestion
+      - name: Install dependencies (if any)
         run: |
-          python scripts/ingest_v3.py
-          python scripts/enrich_corpus.py
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt found, skipping pip install"
+          fi
 
-      - name: Commit generated outputs
+      - name: Run query engine
         run: |
+          echo "[query.yml] Running query_v2.py"
+          python scripts/query_v2.py "${{ inputs.text }}"
+
+      - name: Run interpreter
+        run: |
+          echo "[query.yml] Running interpreter.py"
+          python scripts/interpreter.py
+
+      - name: Render HTML output
+        run: |
+          echo "[query.yml] Rendering HTML"
+          python scripts/render_html.py
+
+      - name: Commit updated HTML
+        run: |
+          echo "[query.yml] Committing web/index.html"
+
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-          # Always sync with remote first (prevents the old collisions)
           git fetch origin
           git reset --hard origin/main
 
-          # Re-run ingestion after reset to ensure files exist
-          python scripts/ingest_v3.py
-
-          git add corpora/*/verses.json corpora/*/verses_enriched.json output/index.json
-          git commit -m "Auto-update corpus outputs" || echo "No changes to commit"
+          git add web/index.html
+          git commit -m "Update query result HTML" || echo "No changes to commit"
           git push
