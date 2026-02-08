@@ -137,9 +137,11 @@ def main():
 
     if chosen:
         primary = chosen[0]
+
+        # FIX: spine_type is already a string
         answer_lines.append(
             f"Across the analysed corpora, the dominant structure relates to "
-            f"{primary.spine_type.value}."
+            f"{primary.spine_type}."
         )
 
         for nid in primary.nodes[:5]:
@@ -148,7 +150,6 @@ def main():
                 f"- {nid.replace('C:concept::','')}"
             )
 
-        # context = short supporting snippets
         for e in essences:
             for t in e.terms[:3]:
                 context.append(f"{e.corpus_id}: {t.term}")
@@ -178,7 +179,7 @@ def main():
     print(f"\n[INTERPRETER] Wrote presentation output → {OUT_FILE}")
 
     # -----------------------------
-    # Console output (unchanged)
+    # Console output
     # -----------------------------
 
     print("\n=== ANSWER (v1 draft) ===")
