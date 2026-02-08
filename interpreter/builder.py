@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, Dict, Set
 
-from .types import SemanticEssence, GraphNode, GraphEdge, NodeType, EdgeRel
+from .semantic_types import SemanticEssence, GraphNode, GraphEdge, NodeType, EdgeRel
 from .graph import InteractionGraph
 from .weights import REL_STRENGTH, evidence_factor, entropy_factor, cap_momentum
 

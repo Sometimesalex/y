@@ -3,7 +3,7 @@ import sys
 from typing import List, Dict
 from collections import defaultdict
 
-from interpreter.types import SeedParams, ClusterParams, SpineParams, MCurrent
+from interpreter.semantic_types import SeedParams, ClusterParams, SpineParams, MCurrent
 from interpreter.graph import InteractionGraph
 from interpreter.essence import QueryV2Adapter, QueryHit, build_semantic_essence_from_hits
 from interpreter.builder import add_essence_to_graph, add_cross_corpus_overlap_edges
@@ -29,8 +29,8 @@ def main():
         sys.exit(1)
 
     # params (v1 more clusters)
-    seed_params = SeedParams(seed_min=3.0, seed_separation_distance=2)
-    cluster_params = ClusterParams(edge_min=0.55, merge_overlap=0.60, core_size=7, max_growth_depth=2, more_clusters=True)
+    seed_params = SeedParams(seed_min=1.0, seed_separation_distance=1)
+    cluster_params = ClusterParams(edge_min=0.05, merge_overlap=0.50, core_size=3, max_growth_depth=2, more_clusters=True)
     spine_params = SpineParams(max_spines_shown=2, target_words=240, output_budget_mode="normal")
     m_current = MCurrent(strength=0.15)
 
@@ -49,6 +49,11 @@ def main():
     for e in essences:
         add_essence_to_graph(g, e, edge_min=cluster_params.edge_min)
     add_cross_corpus_overlap_edges(g, edge_min=cluster_params.edge_min)
+
+    print("\n[DEBUG] graph nodes =", len(g.nodes))
+    print("[DEBUG] graph edges =", sum(len(v) for v in g.adj.values()) // 2)
+    print("[DEBUG] sample nodes =", list(g.nodes.keys())[:10])
+
 
     seeds = select_seeds(g, seed_params, cluster_params)
     clusters = []
