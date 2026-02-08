@@ -18,62 +18,77 @@ if not files:
 latest = files[-1]
 print(f"[converter] using source file: {latest.name}")
 
-# --- load original JSON exactly ---
-with open(latest, "r", encoding="utf-8") as f:
-    original = json.load(f)
+# -------------------------------------------------
+# 1. Load source safely (JSON OR raw text)
+# -------------------------------------------------
 
-raw_text = original.get("content") or original.get("raw") or ""
+raw_text = None
+source_obj = None
 
-if not raw_text:
-    raise RuntimeError("Source JSON contains no transcript content")
+try:
+    with open(latest, "r", encoding="utf-8") as f:
+        source_obj = json.load(f)
 
-# --- parsing ---
+    # JSON loaded successfully
+    raw_text = (
+        source_obj.get("content")
+        or source_obj.get("raw")
+        or source_obj.get("text")
+    )
+
+except json.JSONDecodeError:
+    # Not JSON — treat entire file as raw transcript
+    raw_text = latest.read_text(encoding="utf-8")
+
+if not raw_text or not raw_text.strip():
+    raise RuntimeError("Source file contains no readable transcript")
+
+# -------------------------------------------------
+# 2. Parse transcript into corpora
+# -------------------------------------------------
+
 question = ""
 corpora = defaultdict(list)
 
 current_corpus = None
-current_ref = None
+current_entry = None
 
-lines = raw_text.splitlines()
-
-for line in lines:
+for line in raw_text.splitlines():
     line = line.rstrip()
 
-    # Question line
     if line.startswith("Asking:"):
         question = line.replace("Asking:", "").strip()
         continue
 
-    # Corpus header
     m = re.match(r"^Corpus:\s+(.+)$", line)
     if m:
         current_corpus = m.group(1).strip()
         continue
 
-    # Reference header
     m = re.match(r"^\[(.+?)\]$", line)
     if m and current_corpus:
-        current_ref = m.group(1)
-        corpora[current_corpus].append({
-            "ref": current_ref,
+        current_entry = {
+            "ref": m.group(1),
             "text": "",
             "score": 1.0
-        })
+        }
+        corpora[current_corpus].append(current_entry)
         continue
 
-    # Accumulate verse text
-    if current_corpus and corpora[current_corpus]:
-        if line.strip():
-            corpora[current_corpus][-1]["text"] += line + " "
+    if current_entry and line.strip():
+        current_entry["text"] += line + " "
 
-# --- final converted structure ---
+# -------------------------------------------------
+# 3. Build strict converted JSON
+# -------------------------------------------------
+
 converted = {
     "source_file": latest.name,
     "encoding": "utf-8",
     "format": "parsed-transcript-v1",
     "question": question,
-    "raw_transcript": raw_text,      # FULL ORIGINAL, UNTOUCHED
-    "corpora": corpora,               # STRUCTURED DATA
+    "raw_transcript": raw_text,   # FULL, UNMODIFIED
+    "corpora": corpora,
     "stats": {
         "corpus_count": len(corpora),
         "entry_count": sum(len(v) for v in corpora.values())
@@ -86,4 +101,5 @@ with open(out_file, "w", encoding="utf-8") as f:
     json.dump(converted, f, indent=2, ensure_ascii=False)
 
 print(f"[converter] wrote structured JSON: {out_file}")
-print(f"[converter] corpora: {len(corpora)} | entries: {converted['stats']['entry_count']}")
+print(f"[converter] corpora={converted['stats']['corpus_count']} "
+      f"entries={converted['stats']['entry_count']}")
