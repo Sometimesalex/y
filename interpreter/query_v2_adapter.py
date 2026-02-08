@@ -31,7 +31,17 @@ class QueryV2LiveAdapter(QueryV2Adapter):
 
         # 3. Load JSON
         with open(latest, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            raw = f.read()
+
+        # Find the first JSON object in the file
+        start = raw.find("{")
+        end = raw.rfind("}")
+
+        if start == -1 or end == -1 or end <= start:
+            raise RuntimeError(f"No JSON object found in {latest}")
+
+        data = json.loads(raw[start:end+1])
+
 
         hits: List[QueryHit] = []
 
