@@ -1,0 +1,18 @@
+class QueryV2LiveAdapter(QueryV2Adapter):
+    def run(self, question: str) -> List[QueryHit]:
+        from scripts.query_v2 import run_query  # or whatever entrypoint exists
+
+        result = run_query(question)
+
+        # map query_v2 output → QueryHit
+        hits = []
+        for r in result["results"]:
+            hits.append(
+                QueryHit(
+                    corpus_id=r["corpus"],
+                    doc_id=r.get("doc_id"),
+                    text=r["text"],
+                    score=r.get("score", 1.0),
+                )
+            )
+        return hits
