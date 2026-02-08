@@ -1,8 +1,24 @@
-y/
+# -----------------------------
+# Virtual environments & caches
+# -----------------------------
 venv/
+y/
 __pycache__/
 *.pyc
+
+# -----------------------------
+# Runtime / session outputs
+# -----------------------------
 sessions/
 
+# -----------------------------
+# Generated corpora & datasets
+# -----------------------------
 gcide-0.54/
 corpora/gcide/
+
+# -----------------------------
+# Runtime query outputs (IGNORE)
+# -----------------------------
+querycorpora/
+!querycorpora/.gitkeep
