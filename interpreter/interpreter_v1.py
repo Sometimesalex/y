@@ -1,5 +1,7 @@
 from __future__ import annotations
 import sys
+import json
+from pathlib import Path
 from typing import List
 from collections import defaultdict
 
@@ -28,6 +30,14 @@ TIGHT = dict(
     edge_min=0.55,
     core_size=7,
 )
+
+# -----------------------------
+# Paths
+# -----------------------------
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT_DIR = ROOT / "Interpreteroutput"
+OUT_FILE = OUT_DIR / "interpreter_result.json"
 
 # -----------------------------
 # Main
@@ -119,30 +129,60 @@ def main():
     chosen = choose_spines_for_output(spines, spine_params)
 
     # -----------------------------
-    # Output
+    # Presentation extraction
     # -----------------------------
 
-    print("\n=== ANSWER (v1 draft) ===")
+    answer_lines: List[str] = []
+    context: List[str] = []
 
     if chosen:
         primary = chosen[0]
-        print(f"Primary spine ({primary.spine_type}):")
-        for nid in primary.nodes[:10]:
+        answer_lines.append(
+            f"Across the analysed corpora, the dominant structure relates to "
+            f"{primary.spine_type.value}."
+        )
+
+        for nid in primary.nodes[:5]:
             n = g.nodes[nid]
-            print(
-                f"- {nid} "
-                f"[{n.type.value}] "
-                f"(w={n.weight:.2f}, corpora={len(n.corpus_support)})"
+            answer_lines.append(
+                f"- {nid.replace('C:concept::','')}"
             )
 
-        if len(chosen) > 1:
-            sec = chosen[1]
-            print(f"\nSecondary spine ({sec.spine_type}):")
-            for nid in sec.nodes[:8]:
-                n = g.nodes[nid]
-                print(f"- {nid} [{n.type.value}]")
+        # context = short supporting snippets
+        for e in essences:
+            for t in e.terms[:3]:
+                context.append(f"{e.corpus_id}: {t.term}")
+
     else:
-        print("No spines produced (insufficient graph connectivity).")
+        answer_lines.append(
+            "No stable semantic spine could be formed under current thresholds."
+        )
+
+    answer = "\n".join(answer_lines)
+
+    # -----------------------------
+    # Write interpreter output (FOR RENDERER)
+    # -----------------------------
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "question": q,
+        "answer": answer,
+        "context": context,
+    }
+
+    with open(OUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+    print(f"\n[INTERPRETER] Wrote presentation output → {OUT_FILE}")
+
+    # -----------------------------
+    # Console output (unchanged)
+    # -----------------------------
+
+    print("\n=== ANSWER (v1 draft) ===")
+    print(answer)
 
     print(
         "\nLimits: Given my current corpora and design constraints, "
@@ -150,10 +190,6 @@ def main():
         "that reflects the limits of this interface in this moment, "
         "not a denial of relation."
     )
-
-    # -----------------------------
-    # Debug
-    # -----------------------------
 
     print("\n=== DEBUG: CLUSTERS ===")
     for c in clusters:
