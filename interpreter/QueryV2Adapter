@@ -1,18 +1,34 @@
+# interpreter/query_v2_adapter.py
+
+from typing import List
+from interpreter.essence import QueryV2Adapter, QueryHit
+
+
 class QueryV2LiveAdapter(QueryV2Adapter):
+    """
+    Boundary adapter.
+    Calls query_v2.py and converts its output into QueryHit objects.
+    The semantic engine never sees query_v2 directly.
+    """
+
     def run(self, question: str) -> List[QueryHit]:
-        from scripts.query_v2 import run_query  # or whatever entrypoint exists
+        # Import locally to avoid circular dependencies
+        from scripts.query_v2 import run_query  # adjust if entrypoint differs
 
         result = run_query(question)
 
-        # map query_v2 output → QueryHit
-        hits = []
-        for r in result["results"]:
+        hits: List[QueryHit] = []
+
+        # This mapping depends on query_v2's actual output shape
+        # Adjust keys, but DO NOT change the engine contract
+        for r in result.get("results", []):
             hits.append(
                 QueryHit(
                     corpus_id=r["corpus"],
-                    doc_id=r.get("doc_id"),
+                    doc_id=r.get("doc_id", "unknown"),
                     text=r["text"],
                     score=r.get("score", 1.0),
                 )
             )
+
         return hits
