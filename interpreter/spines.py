@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple, Set
 import math
 
-from .types import NodeType, Cluster, SpineParams, MCurrent
+from .semantic_types import NodeType, Cluster, SpineParams, MCurrent
 from .graph import InteractionGraph
 
 

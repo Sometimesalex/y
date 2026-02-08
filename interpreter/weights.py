@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Dict
-from .types import EdgeRel, NodeType
+from .semantic_types import EdgeRel, NodeType
 
 
 REL_STRENGTH: Dict[EdgeRel, float] = {

@@ -3,7 +3,7 @@ from typing import Dict, List, Set, Tuple
 from collections import defaultdict, deque
 import statistics
 
-from .types import (
+from .semantic_types import (
     Cluster, NodeType, EdgeRel, SeedParams, ClusterParams, MCurrent
 )
 from .graph import InteractionGraph

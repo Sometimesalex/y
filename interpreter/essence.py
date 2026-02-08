@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple, Optional
 import re
 from collections import Counter
 
-from .types import SemanticEssence, WeightedTerm, ConceptNode, Motif, Tension, ToneSignature
+from .semantic_types import SemanticEssence, WeightedTerm, ConceptNode, Motif, Tension, ToneSignature
 
 
 @dataclass

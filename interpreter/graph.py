@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Iterable, Optional, Set, Tuple
 
-from .types import GraphNode, GraphEdge, NodeType, EdgeRel
+from .semantic_types import GraphNode, GraphEdge, NodeType, EdgeRel
 
 
 @dataclass

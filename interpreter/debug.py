@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List, Dict
-from .types import Cluster
+from .semantic_types import Cluster
 from .graph import InteractionGraph
 from .spines import Spine
 
