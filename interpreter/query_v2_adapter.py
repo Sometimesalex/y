@@ -9,50 +9,78 @@ from interpreter.essence import QueryV2Adapter, QueryHit
 class QueryV2LiveAdapter(QueryV2Adapter):
     """
     Live adapter for query_v2.py.
-    Executes the script, then loads the STRICT JSON artefact
-    produced by convert_querycorpora_to_json.py.
+
+    Pipeline:
+      1. Run query_v2.py (raw output)
+      2. Run convert_querycorpora_to_json.py
+      3. Load newest *.converted.json
+      4. Adapt → QueryHit
     """
 
     def run(self, question: str) -> List[QueryHit]:
-        # 1. Run query_v2 (raw output)
+        # --------------------------------------------------
+        # 1. Run query_v2 (RAW output only)
+        # --------------------------------------------------
         subprocess.run(
             ["python", "scripts/query_v2.py", question],
             check=True
         )
 
-        # 2. Run the converter (this is REQUIRED)
+        # --------------------------------------------------
+        # 2. Run converter (STRICT JSON is REQUIRED)
+        # --------------------------------------------------
         subprocess.run(
             ["python", "scripts/convert_querycorpora_to_json.py"],
             check=True
         )
 
-        # 3. Load the newest converted JSON
+        # --------------------------------------------------
+        # 3. Locate newest converted JSON
+        # --------------------------------------------------
         qc_dir = Path("querycorpora")
-        converted = sorted(
+        converted_files = sorted(
             qc_dir.glob("*.converted.json"),
             key=lambda p: p.stat().st_mtime
         )
 
-        if not converted:
-            raise RuntimeError("No converted querycorpora JSON found")
+        if not converted_files:
+            raise RuntimeError(
+                "Query adapter error: no *.converted.json found in querycorpora/"
+            )
 
-        latest = converted[-1]
+        latest = converted_files[-1]
 
+        # --------------------------------------------------
+        # 4. Load STRICT JSON (no recovery hacks)
+        # --------------------------------------------------
         with open(latest, "r", encoding="utf-8") as f:
-            data = json.load(f)   # STRICT JSON ONLY
+            data = json.load(f)
 
+        # --------------------------------------------------
+        # 5. Adapt → QueryHit
+        # --------------------------------------------------
         hits: List[QueryHit] = []
 
-        # 4. Adapt converted JSON → QueryHit
-        for corpus_id, entries in data.get("corpora", {}).items():
+        corpora = data.get("corpora", {})
+        if not corpora:
+            raise RuntimeError(
+                f"Converted JSON has no 'corpora' entries: {latest}"
+            )
+
+        for corpus_id, entries in corpora.items():
             for e in entries:
                 hits.append(
                     QueryHit(
                         corpus_id=corpus_id,
                         doc_id=e.get("ref", "unknown"),
                         text=e.get("text", ""),
-                        score=e.get("score", 1.0),
+                        score=float(e.get("score", 1.0)),
                     )
                 )
+
+        if not hits:
+            raise RuntimeError(
+                f"No QueryHit objects produced from {latest}"
+            )
 
         return hits
