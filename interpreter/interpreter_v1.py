@@ -34,7 +34,8 @@ def main():
     spine_params = SpineParams(max_spines_shown=2, target_words=240, output_budget_mode="normal")
     m_current = MCurrent(strength=0.15)
 
-    adapter: QueryV2Adapter = DummyAdapter()
+    from interpreter.query_v2_adapter import QueryV2LiveAdapter
+    adapter: QueryV2Adapter = QueryV2LiveAdapter()
 
     hits = adapter.run(q)
     by_corpus = defaultdict(list)
