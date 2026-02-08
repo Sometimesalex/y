@@ -45,10 +45,10 @@ jobs:
           cat "$LATEST"
           echo "-----------------"
 
-      - name: Run interpreter
+      - name: Run interpreter (v1 engine)
         run: |
-          echo "[query.yml] Running interpreter.py"
-          python scripts/interpreter.py
+          echo "[query.yml] Running interpreter.interpreter_v1"
+          python -m interpreter.interpreter_v1 "${{ inputs.text }}"
 
       - name: Render HTML output
         run: |
