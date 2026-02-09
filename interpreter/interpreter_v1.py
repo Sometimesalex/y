@@ -65,18 +65,18 @@ def _is_stop_node(nid: str) -> bool:
 # -----------------------------
 
 def debug_top_weighted_nodes(g, n=20):
-    nodes = list(g.nodes.values())
+    # g.nodes is a dict: {node_id: GraphNode}
+    items = list(g.nodes.items())
+
     ranked = sorted(
-        nodes,
-        key=lambda node: getattr(node, "weight", 0.0),
+        items,
+        key=lambda kv: getattr(kv[1], "weight", 0.0),
         reverse=True
     )
 
     print("\n=== DEBUG: TOP PROMOTED TERMS BY WEIGHT ===")
-    for i, node in enumerate(ranked[:n], 1):
-        label = getattr(node, "label", None)
-        if not label:
-            label = node.id.replace("C:concept::", "").replace("T:", "")
+    for i, (nid, node) in enumerate(ranked[:n], 1):
+        label = nid.replace("C:concept::", "").replace("T:", "")
         role = getattr(node, "role", "untyped")
         corpora = len(getattr(node, "corpus_support", {}) or {})
         weight = getattr(node, "weight", 0.0)
@@ -158,7 +158,7 @@ def main():
     print("[DEBUG] graph edges =", sum(len(v) for v in g.adj.values()) // 2)
     print("[DEBUG] sample nodes =", list(g.nodes.keys())[:10])
 
-    # >>> NEW DEBUG PRINT <<<
+    # >>> DEBUG PRINT INSERTED HERE <<<
     debug_top_weighted_nodes(g, 20)
 
     seeds = select_seeds(g, seed_params, cluster_params)
