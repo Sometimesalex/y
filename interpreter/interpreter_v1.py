@@ -40,6 +40,31 @@ OUT_DIR = ROOT / "Interpreteroutput"
 OUT_FILE = OUT_DIR / "interpreter_result.json"
 
 # -----------------------------
+# Presentation filters (FIX 2b)
+# -----------------------------
+
+STOP_DISPLAY_TERMS = {
+    # glue/function words
+    "and", "the", "a", "an", "of", "to", "in", "on", "by", "as", "at", "for", "from", "with",
+    "not", "no", "nor", "or", "but",
+    "is", "are", "was", "were", "be", "been", "being",
+    "this", "that", "these", "those",
+    "his", "her", "their", "our", "your", "my", "thy", "thine", "thee", "thou",
+    "i", "you", "he", "she", "it", "we", "they",
+
+    # question scaffolding words
+    "what", "who", "whom", "whose", "which", "when", "where", "why", "how",
+}
+
+def _node_label(nid: str) -> str:
+    return nid.replace("C:concept::", "").replace("T:", "")
+
+def _is_stop_node(nid: str) -> bool:
+    # Only filter concept/term text; do not delete nodes
+    label = _node_label(nid).strip().lower()
+    return label in STOP_DISPLAY_TERMS
+
+# -----------------------------
 # Main
 # -----------------------------
 
@@ -138,29 +163,43 @@ def main():
     if chosen:
         primary = chosen[0]
 
-        # NOTE: spine_type is already a string (per your current output)
+        # spine_type is already a string
         answer_lines.append(
             "Across the analysed corpora, the dominant structure relates to "
             f"{primary.spine_type}."
         )
 
-        # top concepts on the primary spine
-        for nid in primary.nodes[:5]:
-            label = nid.replace("C:concept::", "").replace("T:", "")
-            answer_lines.append(f"- {label}")
+        # Show top spine concepts, but FILTER stopwords (Fix 2b)
+        shown = 0
+        for nid in primary.nodes:
+            if _is_stop_node(nid):
+                continue
+            answer_lines.append(f"- {_node_label(nid)}")
+            shown += 1
+            if shown >= 5:
+                break
 
-        # FIX: SemanticEssence has no `.terms`; derive context from actual graph support
+        # Fallback: if everything got filtered (rare but possible), show first 3 raw nodes
+        if shown == 0:
+            for nid in primary.nodes[:3]:
+                answer_lines.append(f"- {_node_label(nid)}")
+
+        # Context: list up to 6 corpora that support the chosen spine nodes (no .terms access)
         seen = set()
         for nid in primary.nodes:
             node = g.nodes.get(nid)
             if not node:
                 continue
-
-            for corpus_id in getattr(node, "corpus_support", []):
-                if corpus_id not in seen:
-                    context.append(f"{corpus_id}")
-                    seen.add(corpus_id)
-
+            corpus_support = getattr(node, "corpus_support", {}) or {}
+            for corpus_id, v in corpus_support.items():
+                if corpus_id in seen:
+                    continue
+                if v <= 0:
+                    continue
+                context.append(corpus_id)
+                seen.add(corpus_id)
+                if len(context) >= 6:
+                    break
             if len(context) >= 6:
                 break
 
