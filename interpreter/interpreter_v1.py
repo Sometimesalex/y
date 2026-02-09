@@ -53,7 +53,7 @@ def main():
 
     q = " ".join(args).strip()
     if not q:
-        print("Usage: python -m interpreter.interpreter_v1 [--tight] \"your question\"")
+        print('Usage: python -m interpreter.interpreter_v1 [--tight] "your question"')
         sys.exit(1)
 
     P = TIGHT if mode == "tight" else BOOT
@@ -138,21 +138,31 @@ def main():
     if chosen:
         primary = chosen[0]
 
-        # FIX: spine_type is already a string
+        # NOTE: spine_type is already a string (per your current output)
         answer_lines.append(
-            f"Across the analysed corpora, the dominant structure relates to "
+            "Across the analysed corpora, the dominant structure relates to "
             f"{primary.spine_type}."
         )
 
+        # top concepts on the primary spine
         for nid in primary.nodes[:5]:
-            n = g.nodes[nid]
-            answer_lines.append(
-                f"- {nid.replace('C:concept::','')}"
-            )
+            label = nid.replace("C:concept::", "").replace("T:", "")
+            answer_lines.append(f"- {label}")
 
-        for e in essences:
-            for t in e.terms[:3]:
-                context.append(f"{e.corpus_id}: {t.term}")
+        # FIX: SemanticEssence has no `.terms`; derive context from actual graph support
+        seen = set()
+        for nid in primary.nodes:
+            node = g.nodes.get(nid)
+            if not node:
+                continue
+
+            for corpus_id in getattr(node, "corpus_support", []):
+                if corpus_id not in seen:
+                    context.append(f"{corpus_id}")
+                    seen.add(corpus_id)
+
+            if len(context) >= 6:
+                break
 
     else:
         answer_lines.append(
