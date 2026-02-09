@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from interpreter.semantic_types import SeedParams, ClusterParams, SpineParams, MCurrent
 from interpreter.graph import InteractionGraph
-from interpreter.essence import QueryV2Adapter, QueryHit, build_semantic_essence_from_hits
+from interpreter.essence import QueryV2Adapter, build_semantic_essence_from_hits
 from interpreter.builder import add_essence_to_graph, add_cross_corpus_overlap_edges
 from interpreter.cluster import select_seeds, grow_cluster_from_seed, merge_clusters, compute_bridges
 from interpreter.spines import build_spines, choose_spines_for_output
@@ -32,10 +32,10 @@ def _label(nid: str) -> str:
     return nid.replace("C:concept::", "").replace("T:", "")
 
 # -----------------------------
-# DEBUG: PER-CORPUS TOP 80 TERMS (SIDE BY SIDE)
+# DEBUG: PER-CORPUS TOP TERMS (SIDE BY SIDE)
 # -----------------------------
 
-def debug_per_corpus_top_terms(g, corpora_ids, top_n=80):
+def debug_per_corpus_top_terms(g, corpora_ids, top_n=80, gcide_terms=None):
     print("\n=== DEBUG: PER-CORPUS TOP 80 TERMS (SIDE BY SIDE) ===\n")
 
     per_corpus = {}
@@ -60,16 +60,25 @@ def debug_per_corpus_top_terms(g, corpora_ids, top_n=80):
         terms.sort(key=lambda x: x[0], reverse=True)
         per_corpus[corpus] = [w for _, w in terms[:top_n]]
 
+    # prepend GCIDE column if provided
+    columns = []
+    if gcide_terms is not None:
+        columns.append("GCIDE")
+    columns.extend(corpora_ids)
+
     col_width = 14
-    header = " #  " + "".join(f"{c[:col_width]:<{col_width}}" for c in corpora_ids)
+    header = " #  " + "".join(f"{c[:col_width]:<{col_width}}" for c in columns)
     print(header)
     print("-" * len(header))
 
     for i in range(top_n):
         row = f"{i+1:02d}  "
-        for corpus in corpora_ids:
-            words = per_corpus.get(corpus, [])
-            cell = words[i] if i < len(words) else ""
+        for col in columns:
+            if col == "GCIDE":
+                cell = gcide_terms[i] if gcide_terms and i < len(gcide_terms) else ""
+            else:
+                words = per_corpus.get(col, [])
+                cell = words[i] if i < len(words) else ""
             row += f"{cell:<{col_width}}"
         print(row)
 
@@ -105,7 +114,7 @@ def main():
     adapter: QueryV2Adapter = QueryV2LiveAdapter()
 
     # -----------------------------
-    # Run query (corpora)
+    # Run query (unchanged)
     # -----------------------------
 
     hits = adapter.run(q)
@@ -115,26 +124,13 @@ def main():
         by_corpus[h.corpus_id].append(h)
 
     # -----------------------------
-    # ✅ GCIDE → REAL PSEUDO-CORPUS (NO SCORING CHANGES)
+    # GCIDE (presentation-only, SAFE)
     # -----------------------------
-
-    gcide_defs = adapter.get_gcide_definitions(
-        [t.lower() for t in q.split() if len(t) > 2]
-    )
-
-    if gcide_defs:
-        gcide_hits = []
-        for term, defs in gcide_defs.items():
-            for _ in defs:
-                gcide_hits.append(
-                    QueryHit(
-                        corpus_id="gcide",
-                        term=term,
-                        weight=1.0,
-                        source="gcide"
-                    )
-                )
-        by_corpus["gcide"].extend(gcide_hits)
+    # NOTE:
+    # GCIDE is NOT injected into the pipeline.
+    # This list is intentionally empty unless you later
+    # populate it from existing GCIDE print logic.
+    gcide_terms: List[str] = []
 
     # -----------------------------
     # Build essences (unchanged)
@@ -156,11 +152,16 @@ def main():
     print("[DEBUG] corpora =", len(by_corpus))
 
     # -----------------------------
-    # 🔍 FULL SIDE-BY-SIDE VIEW (ALL CORPORA + GCIDE)
+    # SIDE-BY-SIDE DEBUG VIEW
     # -----------------------------
 
     corpora_ids = sorted(by_corpus.keys())
-    debug_per_corpus_top_terms(g, corpora_ids, top_n=80)
+    debug_per_corpus_top_terms(
+        g,
+        corpora_ids,
+        top_n=80,
+        gcide_terms=gcide_terms
+    )
 
     # -----------------------------
     # Normal interpreter flow (unchanged)
