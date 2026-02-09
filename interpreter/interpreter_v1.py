@@ -64,7 +64,7 @@ def _is_stop_node(nid: str) -> bool:
 # DEBUG: TOP WEIGHTED NODES
 # -----------------------------
 
-def debug_top_weighted_nodes(g, n=60):
+def debug_top_weighted_nodes(g, n=80):
     # g.nodes is a dict: {node_id: GraphNode}
     items = list(g.nodes.items())
 
@@ -74,7 +74,7 @@ def debug_top_weighted_nodes(g, n=60):
         reverse=True
     )
 
-    print("\n=== DEBUG: TOP PROMOTED TERMS BY WEIGHT ===")
+    print(f"\n=== DEBUG: TOP {n} PROMOTED TERMS BY WEIGHT ===")
     for i, (nid, node) in enumerate(ranked[:n], 1):
         label = nid.replace("C:concept::", "").replace("T:", "")
         role = getattr(node, "role", "untyped")
@@ -82,9 +82,9 @@ def debug_top_weighted_nodes(g, n=60):
         weight = getattr(node, "weight", 0.0)
 
         print(
-            f"{i:02d}. {label:<15} "
+            f"{i:02d}. {label:<18} "
             f"role={role:<10} "
-            f"w={weight:6.2f} "
+            f"w={weight:7.2f} "
             f"corpora={corpora}"
         )
 
@@ -158,8 +158,8 @@ def main():
     print("[DEBUG] graph edges =", sum(len(v) for v in g.adj.values()) // 2)
     print("[DEBUG] sample nodes =", list(g.nodes.keys())[:10])
 
-    # >>> DEBUG PRINT INSERTED HERE <<<
-    debug_top_weighted_nodes(g, 20)
+    # >>> DEBUG PRINT (TOP 80) <<<
+    debug_top_weighted_nodes(g, 80)
 
     seeds = select_seeds(g, seed_params, cluster_params)
 
