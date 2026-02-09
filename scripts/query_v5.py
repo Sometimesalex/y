@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "querycorpora"
 
 if len(sys.argv) < 2:
-    print('Usage: query_v2.py "your question"')
+    print('Usage: query_v5.py "your question"')
     sys.exit(1)
 
 # Full question (allow spaces)
@@ -50,7 +50,7 @@ else:
 # ============================================================
 
 # --- Step 1: extract linear tokens from raw debug output ---
-# This is intentionally dumb and faithful.
+# Faithful, left-to-right, no intelligence
 tokens = re.findall(r"[A-Za-z]+", raw)
 
 debug_tokens_path = OUT / f"{ts}.debug.tokens.txt"
@@ -90,10 +90,9 @@ with open(debug_paragraph_path, "w", encoding="utf-8") as f:
 
 
 # --- Step 4: minimal grammatical rendering ---
-# Grammar as constraint, not author.
+# Grammar as legality constraint only
 def grammatical_render(tokens):
-    text = " ".join(tokens)
-    text = text.strip()
+    text = " ".join(tokens).strip()
     if not text:
         return text
     text = text[0].upper() + text[1:]
@@ -108,13 +107,19 @@ with open(final_path, "w", encoding="utf-8") as f:
     f.write(final_text)
 
 
-# --- Optional terminal visibility ---
+# ============================================================
+# TERMINAL VISIBILITY (READABLE, NO KEYBOARD SMASHING)
+# ============================================================
+
+def print_file(label, path):
+    print(f"\n--- {label} ({path}) ---")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            print(f.read())
+    except Exception as e:
+        print(f"[Could not read file: {e}]")
+
 if sys.stdout.isatty():
-    print("\n--- DEBUG: CLEANED LINEAR TOKENS ---")
-    print(debug_clean_linear_path)
-
-    print("\n--- DEBUG: RAW PARAGRAPH (NO GRAMMAR) ---")
-    print(debug_paragraph_path)
-
-    print("\n--- FINAL: GRAMMATICALLY RENDERED ---")
-    print(final_path)
+    print_file("DEBUG: CLEANED LINEAR TOKENS", debug_clean_linear_path)
+    print_file("DEBUG: RAW PARAGRAPH (NO GRAMMAR)", debug_paragraph_path)
+    print_file("FINAL: GRAMMATICALLY RENDERED", final_path)
