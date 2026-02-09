@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from interpreter.semantic_types import SeedParams, ClusterParams, SpineParams, MCurrent
 from interpreter.graph import InteractionGraph
-from interpreter.essence import QueryV2Adapter, build_semantic_essence_from_hits
+from interpreter.essence import QueryV2Adapter, QueryHit, build_semantic_essence_from_hits
 from interpreter.builder import add_essence_to_graph, add_cross_corpus_overlap_edges
 from interpreter.cluster import select_seeds, grow_cluster_from_seed, merge_clusters, compute_bridges
 from interpreter.spines import build_spines, choose_spines_for_output
@@ -38,7 +38,6 @@ def _label(nid: str) -> str:
 def debug_per_corpus_top_terms(g, corpora_ids, top_n=80):
     print("\n=== DEBUG: PER-CORPUS TOP 80 TERMS (SIDE BY SIDE) ===\n")
 
-    # build per-corpus ranked word lists
     per_corpus = {}
 
     for corpus in corpora_ids:
@@ -58,17 +57,14 @@ def debug_per_corpus_top_terms(g, corpora_ids, top_n=80):
             seen.add(word)
             terms.append((val, word))
 
-        # rank internally by this corpus only
         terms.sort(key=lambda x: x[0], reverse=True)
         per_corpus[corpus] = [w for _, w in terms[:top_n]]
 
-    # column header
     col_width = 14
     header = " #  " + "".join(f"{c[:col_width]:<{col_width}}" for c in corpora_ids)
     print(header)
     print("-" * len(header))
 
-    # rows
     for i in range(top_n):
         row = f"{i+1:02d}  "
         for corpus in corpora_ids:
@@ -107,13 +103,47 @@ def main():
 
     from interpreter.query_v2_adapter import QueryV2LiveAdapter
     adapter: QueryV2Adapter = QueryV2LiveAdapter()
+
+    # -----------------------------
+    # Run query (corpora)
+    # -----------------------------
+
     hits = adapter.run(q)
 
     by_corpus = defaultdict(list)
     for h in hits:
         by_corpus[h.corpus_id].append(h)
 
-    essences = [build_semantic_essence_from_hits(cid, ch) for cid, ch in by_corpus.items()]
+    # -----------------------------
+    # ✅ GCIDE → REAL PSEUDO-CORPUS (NO SCORING CHANGES)
+    # -----------------------------
+
+    gcide_defs = adapter.get_gcide_definitions(
+        [t.lower() for t in q.split() if len(t) > 2]
+    )
+
+    if gcide_defs:
+        gcide_hits = []
+        for term, defs in gcide_defs.items():
+            for _ in defs:
+                gcide_hits.append(
+                    QueryHit(
+                        corpus_id="gcide",
+                        term=term,
+                        weight=1.0,
+                        source="gcide"
+                    )
+                )
+        by_corpus["gcide"].extend(gcide_hits)
+
+    # -----------------------------
+    # Build essences (unchanged)
+    # -----------------------------
+
+    essences = [
+        build_semantic_essence_from_hits(cid, ch)
+        for cid, ch in by_corpus.items()
+    ]
 
     g = InteractionGraph()
     for e in essences:
@@ -123,15 +153,24 @@ def main():
 
     print("\n[DEBUG] graph nodes =", len(g.nodes))
     print("[DEBUG] graph edges =", sum(len(v) for v in g.adj.values()) // 2)
+    print("[DEBUG] corpora =", len(by_corpus))
 
-    # >>> NEW DEBUG VIEW (THIS IS WHAT YOU ASKED FOR) <<<
+    # -----------------------------
+    # 🔍 FULL SIDE-BY-SIDE VIEW (ALL CORPORA + GCIDE)
+    # -----------------------------
+
     corpora_ids = sorted(by_corpus.keys())
     debug_per_corpus_top_terms(g, corpora_ids, top_n=80)
 
-    # ---- normal interpreter continues unchanged ----
+    # -----------------------------
+    # Normal interpreter flow (unchanged)
+    # -----------------------------
+
     seeds = select_seeds(g, seed_params, cluster_params)
-    clusters = [grow_cluster_from_seed(g, sid, sc, f"C{i+1}", cluster_params)
-                for i, (sid, sc) in enumerate(seeds)]
+    clusters = [
+        grow_cluster_from_seed(g, sid, sc, f"C{i+1}", cluster_params)
+        for i, (sid, sc) in enumerate(seeds)
+    ]
     clusters = merge_clusters(g, clusters, cluster_params)
     compute_bridges(g, clusters, cluster_params)
 
