@@ -44,15 +44,12 @@ OUT_FILE = OUT_DIR / "interpreter_result.json"
 # -----------------------------
 
 STOP_DISPLAY_TERMS = {
-    # glue/function words
     "and", "the", "a", "an", "of", "to", "in", "on", "by", "as", "at", "for", "from", "with",
     "not", "no", "nor", "or", "but",
     "is", "are", "was", "were", "be", "been", "being",
     "this", "that", "these", "those",
     "his", "her", "their", "our", "your", "my", "thy", "thine", "thee", "thou",
     "i", "you", "he", "she", "it", "we", "they",
-
-    # question scaffolding words
     "what", "who", "whom", "whose", "which", "when", "where", "why", "how",
 }
 
@@ -60,9 +57,36 @@ def _node_label(nid: str) -> str:
     return nid.replace("C:concept::", "").replace("T:", "")
 
 def _is_stop_node(nid: str) -> bool:
-    # Only filter concept/term text; do not delete nodes
     label = _node_label(nid).strip().lower()
     return label in STOP_DISPLAY_TERMS
+
+# -----------------------------
+# DEBUG: TOP WEIGHTED NODES
+# -----------------------------
+
+def debug_top_weighted_nodes(g, n=20):
+    nodes = list(g.nodes.values())
+    ranked = sorted(
+        nodes,
+        key=lambda node: getattr(node, "weight", 0.0),
+        reverse=True
+    )
+
+    print("\n=== DEBUG: TOP PROMOTED TERMS BY WEIGHT ===")
+    for i, node in enumerate(ranked[:n], 1):
+        label = getattr(node, "label", None)
+        if not label:
+            label = node.id.replace("C:concept::", "").replace("T:", "")
+        role = getattr(node, "role", "untyped")
+        corpora = len(getattr(node, "corpus_support", {}) or {})
+        weight = getattr(node, "weight", 0.0)
+
+        print(
+            f"{i:02d}. {label:<15} "
+            f"role={role:<10} "
+            f"w={weight:6.2f} "
+            f"corpora={corpora}"
+        )
 
 # -----------------------------
 # Main
@@ -111,7 +135,6 @@ def main():
 
     m_current = MCurrent(strength=0.15)
 
-    # ---- real adapter ----
     from interpreter.query_v2_adapter import QueryV2LiveAdapter
     adapter: QueryV2Adapter = QueryV2LiveAdapter()
 
@@ -135,6 +158,9 @@ def main():
     print("[DEBUG] graph edges =", sum(len(v) for v in g.adj.values()) // 2)
     print("[DEBUG] sample nodes =", list(g.nodes.keys())[:10])
 
+    # >>> NEW DEBUG PRINT <<<
+    debug_top_weighted_nodes(g, 20)
+
     seeds = select_seeds(g, seed_params, cluster_params)
 
     clusters = []
@@ -153,23 +179,16 @@ def main():
     spines = build_spines(g, clusters, q_terms, m_current, spine_params)
     chosen = choose_spines_for_output(spines, spine_params)
 
-    # -----------------------------
-    # Presentation extraction
-    # -----------------------------
-
     answer_lines: List[str] = []
     context: List[str] = []
 
     if chosen:
         primary = chosen[0]
-
-        # spine_type is already a string
         answer_lines.append(
             "Across the analysed corpora, the dominant structure relates to "
             f"{primary.spine_type}."
         )
 
-        # Show top spine concepts, but FILTER stopwords (Fix 2b)
         shown = 0
         for nid in primary.nodes:
             if _is_stop_node(nid):
@@ -179,12 +198,10 @@ def main():
             if shown >= 5:
                 break
 
-        # Fallback: if everything got filtered (rare but possible), show first 3 raw nodes
         if shown == 0:
             for nid in primary.nodes[:3]:
                 answer_lines.append(f"- {_node_label(nid)}")
 
-        # Context: list up to 6 corpora that support the chosen spine nodes (no .terms access)
         seen = set()
         for nid in primary.nodes:
             node = g.nodes.get(nid)
@@ -192,9 +209,7 @@ def main():
                 continue
             corpus_support = getattr(node, "corpus_support", {}) or {}
             for corpus_id, v in corpus_support.items():
-                if corpus_id in seen:
-                    continue
-                if v <= 0:
+                if corpus_id in seen or v <= 0:
                     continue
                 context.append(corpus_id)
                 seen.add(corpus_id)
@@ -210,26 +225,13 @@ def main():
 
     answer = "\n".join(answer_lines)
 
-    # -----------------------------
-    # Write interpreter output (FOR RENDERER)
-    # -----------------------------
-
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    payload = {
-        "question": q,
-        "answer": answer,
-        "context": context,
-    }
+    payload = {"question": q, "answer": answer, "context": context}
 
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
 
     print(f"\n[INTERPRETER] Wrote presentation output → {OUT_FILE}")
-
-    # -----------------------------
-    # Console output
-    # -----------------------------
 
     print("\n=== ANSWER (v1 draft) ===")
     print(answer)
@@ -254,7 +256,6 @@ def main():
     for s in spines:
         print(spine_debug(g, s))
         print()
-
 
 if __name__ == "__main__":
     main()
