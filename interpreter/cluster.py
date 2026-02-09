@@ -183,6 +183,23 @@ def grow_cluster_from_seed(
     return cluster
 
 
+# -------------------------------------------------
+# FIX 3: semantic core scoring (not raw frequency)
+# -------------------------------------------------
+
+def _semantic_core_score(g: InteractionGraph, nid: str) -> float:
+    n = g.nodes[nid]
+
+    # reward cross-corpus meaning
+    breadth = len(n.corpus_support)
+
+    # softly penalise glue concepts (do not remove)
+    label = nid.replace("C:concept::", "")
+    glue_penalty = 0.4 if label in STOP_SEED_TERMS else 1.0
+
+    return (breadth * 2.0 + n.weight) * glue_penalty
+
+
 def _compute_cluster_profiles(
     g: InteractionGraph,
     cluster: Cluster,
@@ -219,7 +236,11 @@ def _compute_cluster_profiles(
             NodeType.TENSION,
         }
     ]
-    core_candidates.sort(key=lambda nid: g.nodes[nid].weight, reverse=True)
+
+    core_candidates.sort(
+        key=lambda nid: _semantic_core_score(g, nid),
+        reverse=True
+    )
     cluster.core = core_candidates[: params.core_size]
 
 
