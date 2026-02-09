@@ -28,42 +28,53 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "Interpreteroutput"
 OUT_FILE = OUT_DIR / "interpreter_result.json"
 
-# -----------------------------
-# DEBUG: GLOBAL TOP N
-# -----------------------------
-
-def debug_top_weighted_nodes(g, n=80):
-    items = list(g.nodes.items())
-    ranked = sorted(items, key=lambda kv: getattr(kv[1], "weight", 0.0), reverse=True)
-
-    print(f"\n=== DEBUG: TOP {n} PROMOTED TERMS BY WEIGHT ===")
-    for i, (nid, node) in enumerate(ranked[:n], 1):
-        label = nid.replace("C:concept::", "").replace("T:", "")
-        corpora = len(getattr(node, "corpus_support", {}) or {})
-        print(f"{i:02d}. {label:<18} w={node.weight:7.2f} corpora={corpora}")
-
-    return ranked[:n]
+def _label(nid: str) -> str:
+    return nid.replace("C:concept::", "").replace("T:", "")
 
 # -----------------------------
-# DEBUG: COMPARATIVE MATRIX
+# DEBUG: PER-CORPUS TOP 80 TERMS (SIDE BY SIDE)
 # -----------------------------
 
-def debug_corpus_comparison_matrix(top_nodes, corpora_ids, width=8):
-    print("\n=== DEBUG: TOP 80 TERMS — CORPUS COMPARISON MATRIX ===")
+def debug_per_corpus_top_terms(g, corpora_ids, top_n=80):
+    print("\n=== DEBUG: PER-CORPUS TOP 80 TERMS (SIDE BY SIDE) ===\n")
 
-    header = f"{'TERM':<18} " + " ".join(f"{c[:width]:>{width}}" for c in corpora_ids)
+    # build per-corpus ranked word lists
+    per_corpus = {}
+
+    for corpus in corpora_ids:
+        terms = []
+        seen = set()
+
+        for nid, node in g.nodes.items():
+            support = getattr(node, "corpus_support", {}) or {}
+            val = support.get(corpus, 0.0)
+            if val <= 0:
+                continue
+
+            word = _label(nid)
+            if word in seen:
+                continue
+
+            seen.add(word)
+            terms.append((val, word))
+
+        # rank internally by this corpus only
+        terms.sort(key=lambda x: x[0], reverse=True)
+        per_corpus[corpus] = [w for _, w in terms[:top_n]]
+
+    # column header
+    col_width = 14
+    header = " #  " + "".join(f"{c[:col_width]:<{col_width}}" for c in corpora_ids)
     print(header)
     print("-" * len(header))
 
-    for nid, node in top_nodes:
-        label = nid.replace("C:concept::", "").replace("T:", "")
-        row = f"{label:<18} "
-        support = getattr(node, "corpus_support", {}) or {}
-
-        for c in corpora_ids:
-            val = support.get(c, 0.0)
-            row += f"{val:>{width}.2f}"
-
+    # rows
+    for i in range(top_n):
+        row = f"{i+1:02d}  "
+        for corpus in corpora_ids:
+            words = per_corpus.get(corpus, [])
+            cell = words[i] if i < len(words) else ""
+            row += f"{cell:<{col_width}}"
         print(row)
 
 # -----------------------------
@@ -84,9 +95,13 @@ def main():
 
     P = TIGHT if mode == "tight" else BOOT
     seed_params = SeedParams(seed_min=P["seed_min"], seed_separation_distance=P["seed_sep"])
-    cluster_params = ClusterParams(edge_min=P["edge_min"], merge_overlap=0.50,
-                                   core_size=P["core_size"], max_growth_depth=2,
-                                   more_clusters=True)
+    cluster_params = ClusterParams(
+        edge_min=P["edge_min"],
+        merge_overlap=0.50,
+        core_size=P["core_size"],
+        max_growth_depth=2,
+        more_clusters=True
+    )
     spine_params = SpineParams(max_spines_shown=2, target_words=240, output_budget_mode="normal")
     m_current = MCurrent(strength=0.15)
 
@@ -109,14 +124,11 @@ def main():
     print("\n[DEBUG] graph nodes =", len(g.nodes))
     print("[DEBUG] graph edges =", sum(len(v) for v in g.adj.values()) // 2)
 
-    # ---- GLOBAL TOP 80 ----
-    top_nodes = debug_top_weighted_nodes(g, 80)
-
-    # ---- CORPUS MATRIX ----
+    # >>> NEW DEBUG VIEW (THIS IS WHAT YOU ASKED FOR) <<<
     corpora_ids = sorted(by_corpus.keys())
-    debug_corpus_comparison_matrix(top_nodes, corpora_ids)
+    debug_per_corpus_top_terms(g, corpora_ids, top_n=80)
 
-    # ---- NORMAL PIPELINE CONTINUES ----
+    # ---- normal interpreter continues unchanged ----
     seeds = select_seeds(g, seed_params, cluster_params)
     clusters = [grow_cluster_from_seed(g, sid, sc, f"C{i+1}", cluster_params)
                 for i, (sid, sc) in enumerate(seeds)]
