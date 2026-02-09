@@ -64,7 +64,7 @@ def _is_stop_node(nid: str) -> bool:
 # DEBUG: TOP WEIGHTED NODES
 # -----------------------------
 
-def debug_top_weighted_nodes(g, n=20):
+def debug_top_weighted_nodes(g, n=60):
     # g.nodes is a dict: {node_id: GraphNode}
     items = list(g.nodes.items())
 
