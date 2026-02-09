@@ -31,8 +31,28 @@ DEGREE_ALLOWED_NEIGHBORS = {
 STOP_SEED_TERMS = {
     "and", "the", "his", "her", "their", "that", "this",
     "with", "not", "for", "from", "was", "were", "are",
-    "is", "of", "to", "in", "on", "by", "as"
+    "is", "of", "to", "in", "on", "by", "as",
+    # common “query glue” that will otherwise dominate:
+    "what", "who", "why", "how", "when", "where",
 }
+
+# Stronger downweight for glue when picking "core"
+GLUE_CORE_PENALTY = 0.05  # was 0.4 (too weak)
+
+
+def _concept_label(nid: str) -> str:
+    """
+    Extract a human label from a concept node id.
+    Supports:
+      - C:concept::justice  -> justice
+      - C:justice           -> justice
+    Falls back to the raw id segment.
+    """
+    if nid.startswith("C:concept::"):
+        return nid[len("C:concept::"):]
+    if nid.startswith("C:"):
+        return nid[len("C:"):]
+    return nid
 
 
 def seed_score(g: InteractionGraph, node_id: str, params: ClusterParams) -> float:
@@ -83,9 +103,10 @@ def select_seeds(
         if node.type not in SEED_ALLOWED_TYPES:
             continue
 
+        # FIX 2: don't start clusters from glue concepts
         if node.type == NodeType.CONCEPT:
-            term = nid.replace("C:concept::", "")
-            if term in STOP_SEED_TERMS:
+            label = _concept_label(nid).lower()
+            if label in STOP_SEED_TERMS:
                 continue
 
         candidates.append(nid)
@@ -190,14 +211,19 @@ def grow_cluster_from_seed(
 def _semantic_core_score(g: InteractionGraph, nid: str) -> float:
     n = g.nodes[nid]
 
-    # reward cross-corpus meaning
+    # breadth matters (cross-corpus meaning)
     breadth = len(n.corpus_support)
 
-    # softly penalise glue concepts (do not remove)
-    label = nid.replace("C:concept::", "")
-    glue_penalty = 0.4 if label in STOP_SEED_TERMS else 1.0
+    # weight matters (within-corpus strength)
+    base = (breadth * 2.0) + n.weight
 
-    return (breadth * 2.0 + n.weight) * glue_penalty
+    # strong downweight for glue concepts *when selecting core*
+    if n.type == NodeType.CONCEPT:
+        label = _concept_label(nid).lower()
+        if label in STOP_SEED_TERMS:
+            base *= GLUE_CORE_PENALTY
+
+    return float(base)
 
 
 def _compute_cluster_profiles(
@@ -237,10 +263,7 @@ def _compute_cluster_profiles(
         }
     ]
 
-    core_candidates.sort(
-        key=lambda nid: _semantic_core_score(g, nid),
-        reverse=True
-    )
+    core_candidates.sort(key=lambda nid: _semantic_core_score(g, nid), reverse=True)
     cluster.core = core_candidates[: params.core_size]
 
 
