@@ -1,151 +1,76 @@
-# interpreter/probe.py
 """
-probe.py — "Semantic Probe Layer" for the Y project.
+probe.py — Semantic Probe Layer
 
-Goal:
-- Use GCIDE (or any dictionary provider) to generate *hypotheses* about an object
-  (traits / keywords / synonym-ish anchors) WITHOUT injecting GCIDE text into the
-  interpreter graph.
-- Output: expanded query term set + a human-readable probe report.
+Purpose:
+- Use GCIDE as a *hypothesis generator*, not a source of truth.
+- Extract trait-like tokens from dictionary definitions.
+- Feed those traits into interpreter_v2 as query expansion hints.
 
-Design rules:
-- GCIDE may generate hypotheses. Corpora generate conclusions.
-- If GCIDE is unavailable, probe degrades gracefully (no expansion, clear report).
-
-How it works:
-1) Look up definitions for each query term via a pluggable provider.
-2) Extract "trait tokens" from the definition text using simple heuristics.
-3) Return expanded tokens to help corpus retrieval.
+GCIDE RULE:
+- GCIDE suggests traits
+- Corpora decide meaning
 """
-
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Set, Iterable, Optional
 
 
-_TOKEN_RE = re.compile(r"[a-zA-Z][a-zA-Z'\-]*")
+TOKEN_RE = re.compile(r"[a-zA-Z][a-zA-Z'\-]*")
 
 
-def _norm(s: str) -> str:
-    s = (s or "").strip().lower().replace("’", "'")
-    return s
+def norm(s: str) -> str:
+    return (s or "").lower().strip()
 
 
-def _tokenise(s: str) -> List[str]:
-    return [_norm(m.group(0)) for m in _TOKEN_RE.finditer(s or "")]
+def tokenize(text: str) -> List[str]:
+    return [norm(m.group(0)) for m in TOKEN_RE.finditer(text or "")]
 
 
 @dataclass
 class ProbeResult:
-    # query term -> list of definition strings (raw)
     definitions: Dict[str, List[str]]
-    # query term -> extracted trait tokens
     traits: Dict[str, List[str]]
-    # all expanded tokens (traits union)
     expanded_terms: Set[str]
-    # diagnostics
     warnings: List[str]
 
 
 class GCIDEProvider:
     """
-    Provider interface: implement get_definitions(term)->List[str]
-    This module ships with an "auto" provider that tries to import
-    an existing GCIDE lookup function from your repo.
+    Adapter to whatever GCIDE lookup you already have.
+    You MUST edit `lookup()` to match your repo if needed.
     """
 
-    def get_definitions(self, term: str) -> List[str]:
-        raise NotImplementedError
-
-
-class AutoGCIDEProvider(GCIDEProvider):
-    """
-    Best-effort adapter: tries to locate a GCIDE lookup in the repo
-    without hard-coding your architecture.
-
-    You can replace this with a direct import once you know the real path.
-    """
-
-    def __init__(self) -> None:
-        self._fn: Optional[Callable[[str], Sequence[str]]] = None
-        self._warnings: List[str] = []
-        self._try_bind()
-
-    @property
-    def warnings(self) -> List[str]:
-        return list(self._warnings)
-
-    def _try_bind(self) -> None:
-        """
-        Try several likely import paths. If none exist, we remain unbound.
-        """
-        candidates: List[Tuple[str, str]] = [
-            # (module, attribute)
-            ("query.query_v2", "get_gcide_definitions"),
-            ("query.query", "get_gcide_definitions"),
-            ("scripts.query_v2", "get_gcide_definitions"),
-            ("gcide", "get_definitions"),
-            ("gcide.gcide", "get_definitions"),
-        ]
-
-        for mod_name, attr in candidates:
-            try:
-                mod = __import__(mod_name, fromlist=[attr])
-                fn = getattr(mod, attr, None)
-                if callable(fn):
-                    self._fn = fn  # type: ignore[assignment]
-                    return
-            except Exception:
-                continue
-
-        # If we reach here, nothing bound
-        self._warnings.append(
-            "GCIDE provider not found via auto-import. "
-            "Probe will run with no dictionary expansion."
-        )
-
-    def get_definitions(self, term: str) -> List[str]:
-        if not self._fn:
-            return []
+    def lookup(self, term: str) -> List[str]:
         try:
-            out = self._fn(term)
-            if out is None:
+            # EDIT THIS IMPORT if your GCIDE function lives elsewhere
+            from query.query_v2 import get_gcide_definitions
+            defs = get_gcide_definitions(term)
+            if not defs:
                 return []
-            # normalise to list[str]
-            if isinstance(out, (list, tuple)):
-                return [str(x) for x in out]
-            return [str(out)]
-        except Exception as e:
-            self._warnings.append(f"GCIDE lookup failed for '{term}': {e}")
+            if isinstance(defs, list):
+                return [str(d) for d in defs]
+            return [str(defs)]
+        except Exception:
             return []
 
 
 class SemanticProbe:
-    """
-    Extract "trait tokens" from dictionary definitions.
-    This is deliberately simple and auditable.
-    """
-
     def __init__(
         self,
-        provider: Optional[GCIDEProvider] = None,
         stopwords: Optional[Set[str]] = None,
-        max_traits_per_term: int = 16,
-        min_token_len: int = 3,
-    ) -> None:
-        self.provider = provider or AutoGCIDEProvider()
+        max_traits: int = 12,
+        min_len: int = 3,
+    ):
+        self.provider = GCIDEProvider()
         self.stopwords = stopwords or set()
-        self.max_traits_per_term = max_traits_per_term
-        self.min_token_len = min_token_len
+        self.max_traits = max_traits
+        self.min_len = min_len
 
-        # lightweight “definition glue” words to drop even if not in global stopwords
-        self._def_glue = {
-            "especially", "particularly", "usually", "often", "typically",
-            "something", "someone", "anything", "everything",
-            "used", "using", "use", "made", "make", "making",
-            "having", "with", "without", "also",
+        self.definition_glue = {
+            "especially", "usually", "often", "something", "someone",
+            "having", "with", "without", "used", "using", "made", "make",
+            "form", "forms", "kind", "kinds", "type", "types"
         }
 
     def probe(self, query_terms: Iterable[str]) -> ProbeResult:
@@ -154,22 +79,20 @@ class SemanticProbe:
         expanded: Set[str] = set()
         warnings: List[str] = []
 
-        # collect provider warnings if any
-        if isinstance(self.provider, AutoGCIDEProvider):
-            warnings.extend(self.provider.warnings)
-
         for qt in query_terms:
-            term = _norm(qt)
+            term = norm(qt)
             if not term:
                 continue
 
-            defs = self.provider.get_definitions(term)
+            defs = self.provider.lookup(term)
             definitions[term] = defs
 
-            extracted = self._extract_traits_from_definitions(defs)
+            extracted = self._extract_traits(defs)
             traits[term] = extracted
-
             expanded.update(extracted)
+
+            if not defs:
+                warnings.append(f"No GCIDE definitions for '{term}'")
 
         return ProbeResult(
             definitions=definitions,
@@ -178,68 +101,47 @@ class SemanticProbe:
             warnings=warnings,
         )
 
-    def _extract_traits_from_definitions(self, defs: Sequence[str]) -> List[str]:
-        """
-        Heuristic trait extraction:
-        - tokenize definitions
-        - drop stopwords + glue
-        - keep alphabetic tokens >= min length
-        - score by within-def frequency with a small preference for early tokens
-        """
-        if not defs:
-            return []
+    def _extract_traits(self, defs: List[str]) -> List[str]:
+        scores: Dict[str, float] = {}
 
-        counts: Dict[str, float] = {}
         for d in defs:
-            toks = _tokenise(d)
-            for idx, t in enumerate(toks):
-                if len(t) < self.min_token_len:
+            toks = tokenize(d)
+            for i, t in enumerate(toks):
+                if len(t) < self.min_len:
                     continue
                 if t in self.stopwords:
                     continue
-                if t in self._def_glue:
+                if t in self.definition_glue:
                     continue
-                # basic de-noise: drop quote artefacts and lone apostrophes
-                if t in {"''", "'"}:
-                    continue
-                # scoring: frequency + slight boost for earlier terms
-                boost = 1.0 + (0.25 if idx < 8 else 0.0)
-                counts[t] = counts.get(t, 0.0) + boost
+                boost = 1.0 + (0.3 if i < 8 else 0.0)
+                scores[t] = scores.get(t, 0.0) + boost
 
-        ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-        out = [t for t, _s in ranked[: self.max_traits_per_term]]
-        return out
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return [t for t, _ in ranked[: self.max_traits]]
 
 
-def format_probe_report(res: ProbeResult, max_defs: int = 2, max_traits: int = 16) -> str:
-    lines: List[str] = []
-    if res.warnings:
-        lines.append("Probe warnings:")
-        for w in res.warnings:
-            lines.append(f"  - {w}")
-        lines.append("")
+def print_probe_report(result: ProbeResult) -> None:
+    print("\n=== PROBE REPORT (GCIDE → TRAITS) ===")
 
-    for term in sorted(res.definitions.keys()):
-        defs = res.definitions.get(term, [])
-        tr = res.traits.get(term, [])
-        lines.append(f"GCIDE probe for: {term}")
+    for term in result.definitions:
+        print(f"\nTerm: {term}")
+        defs = result.definitions.get(term, [])
         if defs:
-            for d in defs[:max_defs]:
-                one = " ".join((d or "").strip().split())
-                if len(one) > 220:
-                    one = one[:217] + "..."
-                lines.append(f"  def: {one}")
+            for d in defs[:2]:
+                d = " ".join(d.split())
+                print(f"  def: {d[:220]}{'...' if len(d) > 220 else ''}")
         else:
-            lines.append("  def: (none)")
+            print("  def: (none)")
 
+        tr = result.traits.get(term, [])
         if tr:
-            lines.append(f"  traits: {', '.join(tr[:max_traits])}")
+            print(f"  traits: {', '.join(tr)}")
         else:
-            lines.append("  traits: (none)")
-        lines.append("")
+            print("  traits: (none)")
 
-    lines.append(f"Expanded terms count: {len(res.expanded_terms)}")
-    if res.expanded_terms:
-        preview = ", ".join(sorted(list(res.expanded_terms))[:40])
-        lines.append(f"Expanded preview: {preview}")
-    return "\n".join(lines)
+    if result.warnings:
+        print("\nWarnings:")
+        for w in result.warnings:
+            print(f"  - {w}")
+
+    print(f"\nExpanded trait count: {len(result.expanded_terms)}")
