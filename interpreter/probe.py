@@ -1,22 +1,22 @@
 """
-probe.py — Semantic Probe Layer
+probe.py — Semantic Probe Layer (GCIDE-backed)
 
-Purpose:
-- Use GCIDE as a *hypothesis generator*, not a source of truth.
-- Extract trait-like tokens from dictionary definitions.
-- Feed those traits into interpreter_v2 as query expansion hints.
-
-GCIDE RULE:
-- GCIDE suggests traits
-- Corpora decide meaning
+GCIDE ROLE:
+- Hypothesis generator only
+- Extract traits from definitions
+- Never defines meaning
 """
 
+import json
 import re
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, List, Set, Iterable, Optional
 
+ROOT = Path(__file__).resolve().parents[1]
+GCIDE_PATH = ROOT / "corpora" / "GCIDE" / "gcide.json"
 
-TOKEN_RE = re.compile(r"[a-zA-Z][a-zA-Z'\-]*")
+WORD_RE = re.compile(r"[a-zA-Z']+")
 
 
 def norm(s: str) -> str:
@@ -24,7 +24,7 @@ def norm(s: str) -> str:
 
 
 def tokenize(text: str) -> List[str]:
-    return [norm(m.group(0)) for m in TOKEN_RE.finditer(text or "")]
+    return WORD_RE.findall(text.lower())
 
 
 @dataclass
@@ -37,22 +37,21 @@ class ProbeResult:
 
 class GCIDEProvider:
     """
-    Adapter to whatever GCIDE lookup you already have.
-    You MUST edit `lookup()` to match your repo if needed.
+    Direct GCIDE loader.
+    This matches your existing implementation exactly.
     """
 
+    def __init__(self):
+        self.gcide = self._load_gcide()
+
+    def _load_gcide(self) -> Dict[str, List[str]]:
+        if not GCIDE_PATH.exists():
+            return {}
+        with open(GCIDE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+
     def lookup(self, term: str) -> List[str]:
-        try:
-            # EDIT THIS IMPORT if your GCIDE function lives elsewhere
-            from query.query_v2 import get_gcide_definitions
-            defs = get_gcide_definitions(term)
-            if not defs:
-                return []
-            if isinstance(defs, list):
-                return [str(d) for d in defs]
-            return [str(defs)]
-        except Exception:
-            return []
+        return self.gcide.get(term, [])
 
 
 class SemanticProbe:
@@ -70,7 +69,8 @@ class SemanticProbe:
         self.definition_glue = {
             "especially", "usually", "often", "something", "someone",
             "having", "with", "without", "used", "using", "made", "make",
-            "form", "forms", "kind", "kinds", "type", "types"
+            "form", "forms", "kind", "kinds", "type", "types",
+            "one", "who", "which", "that"
         }
 
     def probe(self, query_terms: Iterable[str]) -> ProbeResult:
@@ -87,12 +87,14 @@ class SemanticProbe:
             defs = self.provider.lookup(term)
             definitions[term] = defs
 
+            if not defs:
+                warnings.append(f"No GCIDE definitions for '{term}'")
+                traits[term] = []
+                continue
+
             extracted = self._extract_traits(defs)
             traits[term] = extracted
             expanded.update(extracted)
-
-            if not defs:
-                warnings.append(f"No GCIDE definitions for '{term}'")
 
         return ProbeResult(
             definitions=definitions,
@@ -113,6 +115,7 @@ class SemanticProbe:
                     continue
                 if t in self.definition_glue:
                     continue
+
                 boost = 1.0 + (0.3 if i < 8 else 0.0)
                 scores[t] = scores.get(t, 0.0) + boost
 
