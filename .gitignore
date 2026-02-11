@@ -22,3 +22,4 @@ corpora/gcide/
 # -----------------------------
 querycorpora/
 !querycorpora/.gitkeep
+corpora/GCIDE/wordnet_semantics.json
